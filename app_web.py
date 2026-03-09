@@ -29,7 +29,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 ASISTENTE DE CONQUISTA</h2>
-        <p>Pega el chat de Karen abajo:</p>
+        <p>Pega el chat:</p>
         <textarea id="chat" placeholder="Escribe o pega el chat aquí..."></textarea>
         
         <button class="btn-rom" onclick="enviar('Romántico')">💖 MODO ROMÁNTICO</button>
@@ -108,4 +108,5 @@ def generar():
 if __name__ == '__main__':
     # host='0.0.0.0' permite conexiones externas (tu celular)
     # port=5000 es el puerto que abriste en el Firewall
+
     app.run(host='0.0.0.0', port=5000, debug=True)
