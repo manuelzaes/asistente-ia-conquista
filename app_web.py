@@ -93,7 +93,7 @@ def generar():
             "messages": [
                 {
                     "role": "system", 
-                    "content": f"Eres un experto en respuestas de chat tipo 'ghostwriter' en modo {modo}. Tu única misión es dar 3 opciones de respuesta cortas, ingeniosas y con mucho sentimiento. NO des saludos, NO des consejos, NO hables como un robot. Solo entrega las 3 opciones numeradas del 1 al 3."
+                    "content": f"Eres un experto en carisma para chats en modo {modo}. Tu misión: dar 3 opciones de respuesta CORTAS, naturales y con chispa. EVITA frases clichés o cursis. Escribe como alguien joven y auténtico, usando humor si es necesario. Solo las 3 opciones numeradas."
                 },
                 {"role": "user", "content": f"El mensaje que recibí es: '{chat}'. Dame 3 respuestas para enviar por WhatsApp que tengan mucha chispa y emoción."}
             ],
@@ -114,6 +114,7 @@ if __name__ == '__main__':
     # port=5000 es el puerto que abriste en el Firewall
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 
 
 
