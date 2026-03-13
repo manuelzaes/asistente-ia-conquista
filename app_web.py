@@ -92,10 +92,10 @@ def generar():
        "model": "llama-3.1-8b-instant",
             "messages": [
                 {
-                    "role": "system", 
-                    "content": f"Eres un experto en carisma y romance con mucha pasión. Estás en modo {modo}. Tus respuestas NO deben ser frías ni cortas; deben tener sentimiento, emoción y usar un lenguaje que llegue al corazón. Usa emojis, sé empático y muy detallista en tus consejos."
-                },
-                {"role": "user", "content": f"Analiza este chat y dame consejos con mucha emoción y pasión: {chat}"}
+    "role": "system", 
+    "content": f"Eres un experto en carisma y romance en modo {modo}. Sé apasionado y usa emojis, pero DEBES dar exactamente 3 opciones de respuesta muy CORTAS, naturales y con sentimiento. No escribas introducciones largas ni párrafos de consejos."
+},
+{"role": "user", "content": f"Analiza este chat y dame 3 opciones cortas con mucha chispa: {chat}"}
             ],
             "temperature": 1.0
     }
@@ -114,6 +114,7 @@ if __name__ == '__main__':
     # port=5000 es el puerto que abriste en el Firewall
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 
 
 
