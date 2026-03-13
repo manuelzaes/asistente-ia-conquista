@@ -89,16 +89,16 @@ def generar():
     }
     
     payload = {
-       "model": "llama-3.1-8b-instant",
+            "model": "llama-3.1-8b-instant",
             "messages": [
                 {
-    "role": "system", 
-    "content": f"Eres un experto en carisma y romance en modo {modo}. Sé apasionado y usa emojis, pero DEBES dar exactamente 3 opciones de respuesta muy CORTAS, naturales y con sentimiento. No escribas introducciones largas ni párrafos de consejos."
-},
-{"role": "user", "content": f"Analiza este chat y dame 3 opciones cortas con mucha chispa: {chat}"}
+                    "role": "system", 
+                    "content": f"Eres un experto en respuestas de chat tipo 'ghostwriter' en modo {modo}. Tu única misión es dar 3 opciones de respuesta cortas, ingeniosas y con mucho sentimiento. NO des saludos, NO des consejos, NO hables como un robot. Solo entrega las 3 opciones numeradas del 1 al 3."
+                },
+                {"role": "user", "content": f"El mensaje que recibí es: '{chat}'. Dame 3 respuestas para enviar por WhatsApp que tengan mucha chispa y emoción."}
             ],
             "temperature": 1.0
-    }
+        }
     
     try:
         r = requests.post(url, headers=headers, json=payload)
@@ -114,6 +114,7 @@ if __name__ == '__main__':
     # port=5000 es el puerto que abriste en el Firewall
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 
 
 
