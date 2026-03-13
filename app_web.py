@@ -4,7 +4,7 @@ import requests
 app = Flask(__name__)
 
 # 1. CONFIGURACIÓN: Pega tu API KEY de Groq aquí
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "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"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -88,7 +88,7 @@ def generar():
     }
     
     payload = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "llama-3.1-8b-instant",
         "messages": [
             {"role": "system", "content": f"Eres un experto en carisma. Da 3 opciones de respuesta cortas y naturales en modo {modo}."},
             {"role": "user", "content": f"Analiza este chat y dame opciones: {chat}"}
@@ -110,3 +110,4 @@ if __name__ == '__main__':
     # port=5000 es el puerto que abriste en el Firewall
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
