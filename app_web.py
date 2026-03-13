@@ -93,9 +93,9 @@ def generar():
             "messages": [
                 {
                     "role": "system", 
-                    "content": f"Eres un experto en carisma para chats en modo {modo}. Tu misión: dar 3 opciones de respuesta CORTAS, naturales y con chispa. EVITA frases clichés o cursis. Escribe como alguien joven y auténtico, usando humor si es necesario. Solo las 3 opciones numeradas."
+                    "content": f"Eres un experto en seducción y carisma para un 'Asistente de Conquista'. El usuario quiere ligar/coquetear con la persona que le escribió. Tu misión: dar 3 opciones CORTAS, naturales y con mucha chispa. PROHIBIDO usar palabras familiares como 'hermana', 'amiguita' o frases de calendario. Usa un lenguaje fresco, de joven peruano, que genere interés romántico. Solo entrega las 3 opciones numeradas."
                 },
-                {"role": "user", "content": f"El mensaje que recibí es: '{chat}'. Dame 3 respuestas para enviar por WhatsApp que tengan mucha chispa y emoción."}
+                {"role": "user", "content": f"Contexto: {modo}. Ella me puso: '{chat}'. Dame 3 respuestas para conquistarla."}
             ],
             "temperature": 1.0
         }
@@ -114,6 +114,7 @@ if __name__ == '__main__':
     # port=5000 es el puerto que abriste en el Firewall
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 
 
 
