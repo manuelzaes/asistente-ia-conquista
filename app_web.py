@@ -1,10 +1,11 @@
 from flask import Flask, render_template_string, request, jsonify
 import requests
+import os
 
 app = Flask(__name__)
 
 # 1. CONFIGURACIÓN: Pega tu API KEY de Groq aquí
-GROQ_API_KEY = "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"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -110,4 +111,5 @@ if __name__ == '__main__':
     # port=5000 es el puerto que abriste en el Firewall
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 
