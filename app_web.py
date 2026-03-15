@@ -93,7 +93,7 @@ def generar():
             "messages": [
                 {
                     "role": "system", 
-                    "content": f"Eres un experto en seducción y carisma para un 'Asistente de Conquista'. El usuario quiere ligar/coquetear con la persona que le escribió. Tu misión: dar 3 opciones CORTAS, naturales y con mucha chispa. PROHIBIDO usar palabras familiares como 'hermana', 'amiguita' o frases de calendario. Usa un lenguaje fresco, de joven peruano, que genere interés romántico. Solo entrega las 3 opciones numeradas."
+                    "content": f"Eres un experto en carisma y seducción. El usuario quiere ligar. Tu misión: dar 3 opciones CORTAS (estilo WhatsApp), directas y con mucha seguridad. PROHIBIDO: frases cursis, poemas, saludos familiares o clichés. Usa un lenguaje de alguien joven, seguro de sí mismo y atrevido. El objetivo es generar tensión romántica o concretar una cita. Solo entrega las 3 opciones numeradas."
                 },
                 {"role": "user", "content": f"Contexto: {modo}. Ella me puso: '{chat}'. Dame 3 respuestas para conquistarla."}
             ],
