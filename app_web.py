@@ -31,15 +31,16 @@ HTML_TEMPLATE = """
             transform: scale(1.02);
         }
 
-        /* 2. MODO COQUETO - AZUL CIAN */
+        /* 2. MODO COQUETO - NARANJA EXACTO */
         .btn-coq {
             background-color: #ed8002;
             color: white;
-            box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
+            box-shadow: 0 0 15px rgba(237, 128, 2, 0.6); /* Brillo naranja exacto */
             transition: 0.3s;
+            margin-bottom: 10px;
         }
         .btn-coq:hover {
-            box-shadow: 0 0 25px rgba(0, 212, 255, 0.9);
+            box-shadow: 0 0 25px rgba(237, 128, 2, 0.9);
             transform: scale(1.02);
         }
 
