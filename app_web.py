@@ -19,9 +19,41 @@ HTML_TEMPLATE = """
         .container { max-width: 500px; margin: auto; }
         textarea { width: 100%; height: 120px; background: #1e1e1e; color: #00ff00; border: 2px solid #bb86fc; border-radius: 10px; padding: 10px; font-size: 16px; box-sizing: border-box; }
         button { width: 100%; padding: 18px; margin: 10px 0; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; }
-        .btn-rom { background: #8A2BE2; color: white; }
-        .btn-coq { background: #ff9900; color: white; }
-        .btn-pic { background: #ff0000; color: white; }
+        /* 1. MODO ROMÁNTICO - VIOLETA */
+        .btn-rom {
+            background-color: #8A2BE2;
+            color: white;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.6);
+            transition: 0.3s;
+        }
+        .btn-rom:hover {
+            box-shadow: 0 0 25px rgba(138, 43, 226, 0.9);
+            transform: scale(1.02);
+        }
+
+        /* 2. MODO COQUETO - AZUL CIAN */
+        .btn-coq {
+            background-color: #00D4FF;
+            color: white;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
+            transition: 0.3s;
+        }
+        .btn-coq:hover {
+            box-shadow: 0 0 25px rgba(0, 212, 255, 0.9);
+            transform: scale(1.02);
+        }
+
+        /* 3. MODO PICANTE - ROJO NEÓN */
+        .btn-pic {
+            background-color: #E63946;
+            color: white;
+            box-shadow: 0 0 15px rgba(230, 57, 70, 0.6);
+            transition: 0.3s;
+        }
+        .btn-pic:hover {
+            box-shadow: 0 0 25px rgba(230, 57, 70, 0.9);
+            transform: scale(1.02);
+        }
         .btn-clear { background: #424242; color: #ccc; margin-top: 5px; padding: 10px; }
         #res { background: #1e1e1e; padding: 15px; border-radius: 10px; text-align: left; white-space: pre-wrap; margin-top: 20px; border-left: 5px solid #03dac6; min-height: 50px; }
         h2 { color: #bb86fc; }
