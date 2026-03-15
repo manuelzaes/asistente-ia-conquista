@@ -13,7 +13,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asistente IA - UTP</title>
+    <title>Spark IA </title>
     <style>
         body { background: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
         .container { max-width: 500px; margin: auto; }
@@ -29,7 +29,7 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <div class="container">
-        <h2>🤖 ASISTENTE DE CONQUISTA</h2>
+        <h2>🤖 Spark IA</h2>
         <p>Pega el chat:</p>
         <textarea id="chat" placeholder="Escribe o pega el chat aquí..."></textarea>
         
