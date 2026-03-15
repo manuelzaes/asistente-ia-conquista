@@ -19,7 +19,7 @@ HTML_TEMPLATE = """
         .container { max-width: 500px; margin: auto; }
         textarea { width: 100%; height: 120px; background: #1e1e1e; color: #00ff00; border: 2px solid #bb86fc; border-radius: 10px; padding: 10px; font-size: 16px; box-sizing: border-box; }
         button { width: 100%; padding: 18px; margin: 10px 0; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; }
-        .btn-rom { background: #ff4dff; color: white; }
+        .btn-rom { background: #8A2BE2; color: white; }
         .btn-coq { background: #ff9900; color: white; }
         .btn-pic { background: #ff0000; color: white; }
         .btn-clear { background: #424242; color: #ccc; margin-top: 5px; padding: 10px; }
