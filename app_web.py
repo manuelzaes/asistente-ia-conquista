@@ -18,7 +18,18 @@ HTML_TEMPLATE = """
         body { background: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
         .container { max-width: 500px; margin: auto; }
         textarea { width: 100%; height: 120px; background: #1e1e1e; color: #00ff00; border: 2px solid #bb86fc; border-radius: 10px; padding: 10px; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; padding: 18px; margin: 10px 0; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; }
+        /* PEGA AQUÍ EL ESTILO GENERAL */
+        .btn-rom, .btn-coq, .btn-pic {
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 15px;
+            transition: 0.3s ease;
+        }
         /* 1. MODO ROMÁNTICO - VIOLETA */
         .btn-rom {
             background-color: #ee82ee;
