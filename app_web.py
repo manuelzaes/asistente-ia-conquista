@@ -21,7 +21,7 @@ HTML_TEMPLATE = """
         button { width: 100%; padding: 18px; margin: 10px 0; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; }
         /* 1. MODO ROMÁNTICO - VIOLETA */
         .btn-rom {
-            background-color: #8A2BE2;
+            background-color: #ee82ee;
             color: white;
             box-shadow: 0 0 15px rgba(138, 43, 226, 0.6);
             transition: 0.3s;
@@ -33,7 +33,7 @@ HTML_TEMPLATE = """
 
         /* 2. MODO COQUETO - AZUL CIAN */
         .btn-coq {
-            background-color: #00D4FF;
+            background-color: #ed8002;
             color: white;
             box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
             transition: 0.3s;
