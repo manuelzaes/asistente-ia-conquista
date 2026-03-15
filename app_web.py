@@ -14,6 +14,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spark IA </title>
+    <link rel="icon" href="https://fav.farm/⚡" />
     <style>
         body { background: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
         .container { max-width: 500px; margin: auto; }
