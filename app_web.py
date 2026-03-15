@@ -18,7 +18,27 @@ HTML_TEMPLATE = """
     <style>
         body { background: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
         .container { max-width: 500px; margin: auto; }
-        textarea { width: 100%; height: 120px; background: #1e1e1e; color: #00ff00; border: 2px solid #bb86fc; border-radius: 10px; padding: 10px; font-size: 16px; box-sizing: border-box; }
+        textarea { 
+                width: 100%; 
+                height: 150px; 
+                background: rgba(30, 30, 30, 0.7); /* Un poco transparente */
+                color: #ffffff; 
+                border: 2px solid #8A2BE2; 
+                border-radius: 15px; 
+                padding: 15px; 
+                font-family: 'Consolas', 'Monaco', monospace; 
+                font-size: 14px;
+                outline: none;
+                box-shadow: 0 0 10px rgba(138, 43, 226, 0.2);
+                transition: 0.3s ease;
+                resize: none; /* Evita que el usuario lo deforme */
+            }
+
+            textarea:focus { 
+                border-color: #00D4FF; /* Cambia a azul cian al escribir */
+                box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+                background: #1e1e1e;
+            }
         /* PEGA AQUÍ EL ESTILO GENERAL */
         .btn-rom, .btn-coq, .btn-pic {
             border: none;
