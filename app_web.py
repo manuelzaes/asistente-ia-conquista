@@ -87,7 +87,25 @@ HTML_TEMPLATE = """
             box-shadow: 0 0 25px rgba(230, 57, 70, 0.9);
             transform: scale(1.02);
         }
-        .btn-clear { background: #424242; color: #ccc; margin-top: 5px; padding: 10px; }
+        .btn-clear {
+            background-color: transparent;
+            color: #888;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 50%; /* Lo hacemos más pequeño para que se vea elegante */
+            margin: 10px auto;
+            display: block;
+            transition: 0.3s;
+        }
+
+        .btn-clear:hover {
+            color: #fff;
+            border-color: #fff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
         #res { background: #1e1e1e; padding: 15px; border-radius: 10px; text-align: left; white-space: pre-wrap; margin-top: 20px; border-left: 5px solid #03dac6; min-height: 50px; }
         h2 { color: #bb86fc; }
     </style>
