@@ -87,6 +87,18 @@ HTML_TEMPLATE = """
             box-shadow: 0 0 25px rgba(230, 57, 70, 0.9);
             transform: scale(1.02);
         }
+        /* 4. MODO PROVOCATIVO - PÚRPURA ELÉCTRICO */
+        .btn-prov {
+            background-color: #a333ff;
+            color: white;
+            box-shadow: 0 0 15px rgba(163, 51, 255, 0.6);
+            transition: 0.3s;
+        }
+        .btn-prov:hover {
+            box-shadow: 0 0 25px rgba(163, 51, 255, 0.9);
+            transform: scale(1.02);
+            background-color: #b554ff;
+        }
         .btn-clear {
             background-color: transparent;
             color: #888;
@@ -119,6 +131,7 @@ HTML_TEMPLATE = """
         <button class="btn-rom" onclick="enviar('Romántico')">💖 MODO ROMÁNTICO</button>
         <button class="btn-coq" onclick="enviar('Coqueto')">😏 MODO COQUETO</button>
         <button class="btn-pic" onclick="enviar('Picante')">🔥 MODO PICANTE</button>
+        <button class="btn-prov" onclick="enviar('Provocativo')">😈 MODO PROVOCATIVO</button>
         <button class="btn-clear" onclick="limpiar()">🧹 Limpiar Todo</button>
 
         <div id="res">✨ Las sugerencias de Llama 3.3 aparecerán aquí...</div>
@@ -175,8 +188,16 @@ def generar():
             "model": "llama-3.1-8b-instant",
             "messages": [
                 {
-                    "role": "system", 
-                    "content": f"Eres un experto en carisma y seducción. El usuario quiere ligar. Tu misión: dar 3 opciones CORTAS (estilo WhatsApp), directas y con mucha seguridad. PROHIBIDO: frases cursis, poemas, saludos familiares o clichés. Usa un lenguaje de alguien joven, seguro de sí mismo y atrevido. El objetivo es generar tensión romántica o concretar una cita. Solo entrega las 3 opciones numeradas."
+                    "role": "system",
+                    "content": (
+                        f"Eres un experto en carisma y seducción. Tu misión es dar 3 opciones CORTAS (estilo WhatsApp). "
+                        f"Usa un lenguaje de alguien joven y seguro. Reglas por modo: "
+                        f"Romántico: dulce y detallista. "
+                        f"Coqueto: cumplidos sutiles y picardía. "
+                        f"Picante: atrevido y directo. "
+                        f"Provocativo: sé un reto juguetón, usa sarcasmo divertido y genera tensión. No seas fácil de impresionar. "
+                        f"PROHIBIDO: frases cursis o poemas. Solo entrega las 3 opciones numeradas."
+                    )
                 },
                 {"role": "user", "content": f"Contexto: {modo}. Ella me puso: '{chat}'. Dame 3 respuestas para conquistarla."}
             ],
