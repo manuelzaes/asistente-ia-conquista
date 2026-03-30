@@ -87,12 +87,20 @@ HTML_TEMPLATE = """
             box-shadow: 0 0 25px rgba(230, 57, 70, 0.9);
             transform: scale(1.02);
         }
-        /* 4. MODO PROVOCATIVO - PÚRPURA ELÉCTRICO */
+       /* 4. MODO PROVOCATIVO - PÚRPURA ELÉCTRICO */
         .btn-prov {
             background-color: #a333ff;
             color: white;
             box-shadow: 0 0 15px rgba(163, 51, 255, 0.6);
             transition: 0.3s;
+            width: 100%;        /* Ocupa todo el ancho */
+            padding: 15px;      /* Grosor igual a los otros */
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            cursor: pointer;
+            display: block;     /* Asegura que se comporte como bloque */
         }
         .btn-prov:hover {
             box-shadow: 0 0 25px rgba(163, 51, 255, 0.9);
@@ -190,13 +198,15 @@ def generar():
                 {
                     "role": "system",
                     "content": (
-                        f"Eres un experto en carisma y seducción. Tu misión es dar 3 opciones CORTAS (estilo WhatsApp). "
-                        f"Usa un lenguaje de alguien joven y seguro. Reglas por modo: "
-                        f"Romántico: dulce y detallista. "
-                        f"Coqueto: cumplidos sutiles y picardía. "
-                        f"Picante: atrevido y directo. "
-                        f"Provocativo: sé un reto juguetón, usa sarcasmo divertido y genera tensión. No seas fácil de impresionar. "
-                        f"PROHIBIDO: frases cursis o poemas. Solo entrega las 3 opciones numeradas."
+                        f"Eres un experto en carisma y psicología de la seducción. Tu misión es dar 3 opciones CORTAS. "
+                        f"REGLAS POR MODO: "
+                        f"Romántico: Dulce y detallista. "
+                        f"Coqueto: Complidos y picardía. "
+                        f"Picante: Atrevido y directo. "
+                        f"Provocativo: NO seas amable. Sé un reto. Usa el sarcasmo juguetón para cuestionar lo que ella dice. "
+                        f"Actúa como si fueras difícil de impresionar. No des cumplidos; haz bromas que generen tensión y "
+                        f"obliguen a la otra persona a esforzarse. "
+                        f"PROHIBIDO: Frases cursis o poemas. Solo 3 opciones numeradas."
                     )
                 },
                 {"role": "user", "content": f"Contexto: {modo}. Ella me puso: '{chat}'. Dame 3 respuestas para conquistarla."}
