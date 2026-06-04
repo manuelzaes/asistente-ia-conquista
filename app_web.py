@@ -24,7 +24,7 @@ HTML_TEMPLATE = """
         h2 { color: #bb86fc; text-align: center; margin-bottom: 5px; font-size: 24px; }
         .subtitle { color: #888; font-size: 13px; text-align: center; margin-bottom: 20px; }
         
-        /* DISEÑO VERTICAL ORIGINAL */
+        /* DISEÑO VERTICAL ORIGINAL EXCLUSIVO */
         .file-zone {
             border: 2px dashed #8A2BE2;
             border-radius: 15px;
@@ -60,7 +60,7 @@ HTML_TEMPLATE = """
         }
         textarea:focus { border-color: #00D4FF; box-shadow: 0 0 15px rgba(0, 212, 255, 0.3); }
         
-        /* MATRIZ SIMÉTRICA DE BOTONES 2X3 */
+        /* MATRIZ DE BOTONES SIMÉTRICA 2X3 */
         .buttons-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -68,10 +68,10 @@ HTML_TEMPLATE = """
             margin-bottom: 15px;
         }
         
-        /* Todos los botones tienen exactamente el mismo tamaño y estilo base */
+        /* Ajuste estricto: Todos los botones miden exactamente lo mismo */
         .grid-btn {
             border: none; 
-            height: 48px; /* Forzamos la misma altura exacta */
+            height: 50px; 
             border-radius: 12px; 
             font-weight: bold; 
             font-size: 13px; 
@@ -113,7 +113,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista Pro v5.0</div>
+        <div class="subtitle">Asistente de Conquista Estável v5.0</div>
         
         <div class="file-zone" onclick="document.getElementById('file-input').click()">
             <p>📸 <strong>Sube la captura de pantalla</strong></p>
@@ -122,9 +122,9 @@ HTML_TEMPLATE = """
             <img id="img-preview" class="preview-img" src="" alt="Vista previa">
         </div>
         
-        <div class="section-divider">— TEXTO DEL CHAT O GUSTOS DEL PERFIL —</div>
+        <div class="section-divider">— TEXTO DEL CHAT O DETALLES DEL PERFIL —</div>
         
-        <textarea id="chat-input" placeholder="Aquí aparecerá el texto de la captura, o puedes escribir directamente los gustos de ella para crear un abridor..."></textarea>
+        <textarea id="chat-input" placeholder="Aquí aparecerá el texto de tu captura, o escribe los gustos de ella (ej: le gusta el café y viajar) para iniciar la conversación..."></textarea>
         
         <div class="buttons-grid">
             <button class="grid-btn btn-rom" onclick="enviar('Romántico')">💖 ROMÁNTICO</button>
@@ -205,8 +205,6 @@ HTML_TEMPLATE = """
             }
 
             resDiv.innerText = "⏳ Spark IA está analizando estratégicamente...";
-
-            // Enviamos todo unificado mediante 'mode' al backend para evitar confusiones
             ejecutarPeticion({ data: entradaTexto, mode: modoEstratega });
         }
 
@@ -219,7 +217,7 @@ HTML_TEMPLATE = """
             })
             .then(response => response.json())
             .then(data => { resDiv.innerText = data.resultado; })
-            .catch(error => { resDiv.innerText = "❌ Error en el servidor al procesar la solicitud."; });
+            .catch(error => { resDiv.innerText = "❌ Error en el servidor al conectar con la IA."; });
         }
     </script>
 </body>
@@ -234,7 +232,7 @@ def home():
 def generar():
     data = request.json
     contenido = data.get('data')
-    modo = data.get('mode') # Recibe el modo del botón unificado de manera exacta
+    modo = data.get('mode')
     
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
@@ -242,18 +240,55 @@ def generar():
         "Content-Type": "application/json"
     }
 
-    # LOGICA OPTIMIZADA: Si pulsa iniciar chat, genera abridores directos desde la caja de texto
+    # Lógica unificada para el botón de Iniciar Chat integrado
     if modo == 'Iniciar Chat':
         system_prompt = (
             "Eres un maestro del carisma y experto en crear mensajes rompehielos para apps de citas. "
-            "Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar una conversación desde cero, basándote en la descripción, gustos o detalles provistos. "
+            "Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar una conversación desde cero, basándote en la descripción, gustos o detalles provistos por el usuario en la caja de texto. "
             "REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni piropos genéricos de internet. Sé ingenioso y magnético. "
-            "Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni saludos."
+            "Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni saludos de tu parte."
         )
-        user_prompt = f"Detalles del perfil/gustos de la persona: '{contenido}'."
+        user_prompt = f"Detalles del perfil o gustos de la persona: '{contenido}'."
     else:
-        # Modos de respuesta sobre chats existentes
+        # Lógica de respuestas para chats existentes
         system_prompt = (
             f"Eres un estratega experto en carisma y citas rápidas. "
             f"Vas a recibir una conversación de chat. Sabes perfectamente que la primera línea 'Tú' corresponde al usuario, "
-            f"y los mensajes siguientes son la respuesta directa de la otra persona (
+            f"y los mensajes siguientes son la respuesta directa de la otra persona (ella). "
+            f"Tu tarea crucial es responder ÚNICAMENTE al último mensaje enviado por ella, usando el contexto anterior para que tenga sentido. "
+            f"Generas exactamente 3 opciones de réplica cortas, fluidas, magnéticas y auténticas. "
+            f"ENFOQUE SEGÚN MODO SELECCIONADO ({modo}): "
+            f"- Romántico: Atento, sutil, conectando lindo con alta seguridad. "
+            f"- Coqueto: Divertido, ingenioso, pícaro, haciéndola sonreír. "
+            f"- Picante: Atrevido, directo, magnético, con clase y misterio. "
+            f"- Provocativo: Un reto juguetón, usando psicología inversa. "
+            f"- Salvar el Momento: Un salvavidas de emergencia. Si ella fue cortante o dejó de responder, genera respuestas ingeniosas con humor o giros audaces para revivir el chat. "
+            f"Formato estricto: Devuelve exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni explicaciones."
+        )
+        user_prompt = f"Conversación:\n{contenido}\n\nGenera 3 respuestas perfectas en modo {modo}."
+
+    payload_final = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.82
+    }
+
+    try:
+        r_final = requests.post(url, headers=headers, json=payload_final)
+        res_final = r_final.json()
+        
+        # CORRECCIÓN CLAVE: Validación estricta de la respuesta de Groq para evitar el error 'choices'
+        if 'choices' in res_final and len(res_final['choices']) > 0:
+            resultado = res_final['choices'][0]['message']['content']
+        else:
+            resultado = f"Error en la respuesta de la API. Detalles: {res_final}"
+            
+        return jsonify({"resultado": resultado})
+    except Exception as e:
+        return jsonify({"resultado": f"Error en el motor de la IA: {str(e)}"})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
