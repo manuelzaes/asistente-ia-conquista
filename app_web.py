@@ -84,7 +84,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente Avanzado de Conquista v3.2</div>
+        <div class="subtitle">Asistente Avanzado de Conquista v3.5</div>
         
         <!-- Pestañas -->
         <div class="tabs">
@@ -122,7 +122,6 @@ HTML_TEMPLATE = """
 
     <script>
         let modoApp = 'responder';
-        let textoExtraidoDeImagen = "";
 
         function cambiarModo(modo) {
             modoApp = modo;
@@ -132,13 +131,12 @@ HTML_TEMPLATE = """
             document.getElementById('section-iniciar').style.display = modo === 'iniciar' ? 'block' : 'none';
         }
 
-        // Lector OCR Inteligente ejecutado en el mismo celular
         function previewAndProcessImage(input) {
             const preview = document.getElementById('img-preview');
             const status = document.getElementById('upload-status');
             
             if (input.files && input.files[0]) {
-                status.innerText = "⏳ Leyendo las letras de la captura... Por favor espera.";
+                status.innerText = "⏳ Leyendo captura... Por favor espera.";
                 status.style.color = "#00D4FF";
                 
                 const reader = new FileReader();
@@ -146,18 +144,16 @@ HTML_TEMPLATE = """
                     preview.src = e.target.result;
                     preview.style.display = 'block';
                     
-                    // Ejecuta el reconocimiento de texto localmente
                     Tesseract.recognize(
                         e.target.result,
-                        'spa', // Idioma español
+                        'spa', 
                         { logger: m => console.log(m) }
                     ).then(({ data: { text } }) => {
-                        textoExtraidoDeImagen = text;
-                        status.innerText = "✅ ¡Captura leída con éxito!";
+                        status.innerText = "✅ ¡Captura leída! Pulsa un modo abajo.";
                         status.style.color = "#03dac6";
-                        document.getElementById('chat').value = text; // Lo pega en el cuadro para que veas lo que leyó
+                        document.getElementById('chat').value = text; 
                     }).catch(err => {
-                        status.innerText = "❌ Error al leer la imagen. Intenta escribir el texto abajo.";
+                        status.innerText = "❌ Error al leer la imagen. Intenta escribir abajo.";
                         status.style.color = "#E63946";
                     });
                 }
@@ -169,7 +165,6 @@ HTML_TEMPLATE = """
             document.getElementById('chat').value = "";
             document.getElementById('intereses').value = "";
             document.getElementById('file-input').value = "";
-            textoExtraidoDeImagen = "";
             const preview = document.getElementById('img-preview');
             preview.src = "";
             preview.style.display = 'none';
@@ -185,7 +180,6 @@ HTML_TEMPLATE = """
 
             if (modoApp === 'responder') {
                 const chatTexto = document.getElementById('chat').value;
-                
                 if (chatTexto.trim() !== "") {
                     ejecutarPeticion({ tipo: 'texto', data: chatTexto, modo: modoEstratega });
                 } else {
@@ -240,7 +234,6 @@ def generar():
         "Content-Type": "application/json"
     }
 
-    # SELECCIÓN DINÁMICA DE PROMPTS
     if tipo == 'iniciar':
         system_prompt = (
             f"Eres un maestro del carisma y experto en crear 'abrelatas' o mensajes rompehielos para apps de citas (como Liggo o Flechazo). "
@@ -255,10 +248,13 @@ def generar():
         )
         user_prompt = f"Detalles del perfil o gustos de la chica: '{contenido}'. Fabrícame las 3 mejores opciones."
     else:
+        # AQUÍ ESTÁ EL CAMBIO CLAVE: Entrenamos al modelo para que ordene el desastre del OCR
         system_prompt = (
             f"Eres un experto en carisma, seducción moderna y dinámicas de chat en apps de citas (como Liggo o Flechazo). "
+            f"INSTRUCCIÓN DE FILTRADO OCR: El texto del chat que vas a recibir proviene de un lector óptico de imágenes, por lo que estará desordenado, mezclado con horas (p.m./a.m.) o marcas como 'Tú'. "
+            f"Tu primer paso es analizar ese desorden de forma lógica, identificar cuál es el hilo real de la conversación y aislar el último mensaje que envió la otra persona (ella) para responderle directamente. "
             f"Tu misión es dar exactamente 3 opciones de respuestas cortas, fluidas, ingeniosas y que suenen 100% naturales, ideales para mensajería móvil. "
-            f"REGLA DE ORO: Evita sonar artificial o formal. Prohibido ser arrogante, intenso o pesado. "
+            f"REGLA DE ORO: Evita sonar artificial, robótico o formal. Prohibido ser arrogante, intenso o pesado. "
             f"Mantén siempre una vibra de alta confianza y tensión divertida. "
             f"ESTILOS DE RESPUESTA SEGÚN EL MODO SELECCIONADO ({modo}): "
             f"- Romántico: Dulce, tierno y detallista, pero moderno. Hazla sentir especial sin sonar necesitado. "
@@ -267,16 +263,16 @@ def generar():
             f"- Provocativo: Un reto juguetón. Aplica el 'tira y afloja'. Sé ese villano encantador que pone un desafío inteligente para que ella busque ganar tu atención. "
             f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3). No agregues introducciones, comentarios, ni textos extras antes o después."
         )
-        user_prompt = f"Contexto del chat actual:\n{contenido}\n\nGenera las 3 mejores opciones para responder bajo el modo {modo}."
+        user_prompt = f"Texto bruto del chat (OCR):\n{contenido}\n\nAnaliza la estructura, descubre qué me está diciendo ella al final y genérame las 3 mejores opciones en modo {modo}."
 
-    # ENVIAMOS TODO DIRECTO AL NUEVO CEREBRO ESTABLE (Llama 3.3 70B)
+    # ENVIAMOS AL CEREBRO Llama 3.3 70B
     payload_final = {
         "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ],
-        "temperature": 0.85
+        "temperature": 0.82
     }
 
     try:
