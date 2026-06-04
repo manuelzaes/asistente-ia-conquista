@@ -1,7 +1,6 @@
 from flask import Flask, render_template_string, request, jsonify
 import requests
 import os
-import re
 
 app = Flask(__name__)
 
@@ -25,12 +24,12 @@ HTML_TEMPLATE = """
         h2 { color: #bb86fc; text-align: center; margin-bottom: 5px; font-size: 24px; }
         .subtitle { color: #888; font-size: 13px; text-align: center; margin-bottom: 20px; }
         
-        /* Pestañas de Navegación */
+        /* Pestañas de Navigation */
         .tabs { display: flex; justify-content: space-around; margin-bottom: 15px; background: #262626; border-radius: 12px; padding: 4px; }
         .tab-btn { background: transparent; color: #888; border: none; padding: 8px 15px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 50%; border-radius: 8px; font-size: 14px; }
         .tab-btn.active { background: #8A2BE2; color: white; box-shadow: 0 0 10px rgba(138, 43, 226, 0.5); }
         
-        /* --- NUEVA DISTRIBUCIÓN HORIZONTAL --- */
+        /* DISEÑO EN HORIZONTAL */
         .grid-inputs {
             display: flex;
             gap: 15px;
@@ -38,13 +37,13 @@ HTML_TEMPLATE = """
         }
         .input-box {
             flex: 1;
-            min-width: 0; /* Evita desbordamiento */
+            min-width: 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
         }
         
-        /* Zona de carga de archivos */
+        /* Zona de Carga */
         .file-zone {
             border: 2px dashed #8A2BE2;
             border-radius: 15px;
@@ -64,7 +63,7 @@ HTML_TEMPLATE = """
         .file-zone p { margin: 2px 0; font-size: 13px; color: #aaa; }
         .preview-img { max-height: 50px; display: none; margin-top: 5px; border-radius: 6px; border: 1px solid #8A2BE2; }
 
-        /* Cuadro de Texto */
+        /* Cuadro de texto */
         textarea { 
             width: 100%; 
             height: 140px; 
@@ -82,7 +81,7 @@ HTML_TEMPLATE = """
         }
         textarea:focus { border-color: #00D4FF; box-shadow: 0 0 15px rgba(0, 212, 255, 0.3); }
         
-        /* --- BOTONES EN MATRIZ 2X2 --- */
+        /* REJILLA MATRIZ 2X2 */
         .buttons-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -103,25 +102,23 @@ HTML_TEMPLATE = """
             justify-content: center;
             gap: 8px;
         }
-        .btn-rom { background-color: #ee82ee; color: white; box-shadow: 0 4px 10px rgba(138, 43, 226, 0.2); }
+        .btn-rom { background-color: #ee82ee; color: white; }
         .btn-rom:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(138, 43, 226, 0.5); }
         
-        .btn-coq { background-color: #ed8002; color: white; box-shadow: 0 4px 10px rgba(237, 128, 2, 0.2); }
+        .btn-coq { background-color: #ed8002; color: white; }
         .btn-coq:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(237, 128, 2, 0.5); }
         
-        .btn-pic { background-color: #E63946; color: white; box-shadow: 0 4px 10px rgba(230, 57, 70, 0.2); }
+        .btn-pic { background-color: #E63946; color: white; }
         .btn-pic:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(230, 57, 70, 0.5); }
         
-        .btn-prov { background-color: #a333ff; color: white; box-shadow: 0 4px 10px rgba(163, 51, 255, 0.2); }
+        .btn-prov { background-color: #a333ff; color: white; }
         .btn-prov:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(163, 51, 255, 0.5); }
         
         .btn-clear { background: transparent; color: #666; border: 1px solid #333; padding: 6px; border-radius: 8px; cursor: pointer; width: 120px; margin: 0 auto 15px auto; display: block; transition: 0.3s; font-size: 12px; }
         .btn-clear:hover { color: #fff; border-color: #aaa; }
         
-        /* Cuadro de Resultados Superior */
         #res { background: #222; padding: 15px; border-radius: 15px; text-align: left; white-space: pre-wrap; border-left: 5px solid #00D4FF; min-height: 60px; font-size: 14px; line-height: 1.5; box-shadow: inset 0 2px 10px rgba(0,0,0,0.3); }
 
-        /* Adaptación para celulares muy pequeños */
         @media (max-width: 480px) {
             .grid-inputs { flex-direction: column; gap: 10px; }
             .file-zone, textarea { height: 120px; }
@@ -182,18 +179,18 @@ HTML_TEMPLATE = """
         }
 
         function limpiarTextoFront(textoBruto) {
-            let lineas = textoBruto.split('\n');
+            let lineas = textoBruto.split('\\n');
             let lineasFiltradas = [];
             lineas.forEach(linea => {
                 let l = linea.trim();
                 if (!l) return;
-                if (/(p\.?m\.?|a\.?m\.?|\d{2,4})/i.test(l)) {
-                    if (/(talla|tala|tall|\d+)/i.test(l)) return;
+                if (/(p\\.?m\\.?|a\\.?m\\.?|\\d{2,4})/i.test(l)) {
+                    if (/(talla|tala|tall|\\d+)/i.test(l)) return;
                 }
-                l = l.replace(/^[\s|:\.\-]+/, '').trim();
+                l = l.replace(/^[\\s|:\\.\\-]+/, '').trim();
                 if (l) lineasFiltradas.push(l);
             });
-            return lineasFiltradas.join('\n');
+            return lineasFiltradas.join('\\n');
         }
 
         function previewAndProcessImage(input) {
@@ -243,7 +240,7 @@ HTML_TEMPLATE = """
             if (modoApp === 'responder') {
                 const chatTexto = document.getElementById('chat').value;
                 if (chatTexto.trim() !== "") {
-                    ejecutarPeticion({ tipo: 'texto', data: chatTexto, modo: modoEstratega });
+                    ejecutarPeticion({ tipo: 'texto', data: chatTexto, mode: modoEstratega });
                 } else {
                     alert("Por favor, sube una captura.");
                     resDiv.innerText = "✨ Las sugerencias estratégicas aparecerán aquí directamente...";
@@ -255,7 +252,7 @@ HTML_TEMPLATE = """
                     resDiv.innerText = "✨ Las sugerencias estratégicas aparecerán aquí directamente...";
                     return;
                 }
-                ejecutarPeticion({ tipo: 'iniciar', data: datosPerfil, modo: modoEstratega });
+                ejecutarPeticion({ tipo: 'iniciar', data: datosPerfil, mode: modoEstratega });
             }
         }
 
@@ -273,3 +270,66 @@ HTML_TEMPLATE = """
     </script>
 </body>
 </html>
+"""
+
+@app.route('/')
+def home():
+    return render_template_string(HTML_TEMPLATE)
+
+@app.route('/generar', methods=['POST'])
+def generar():
+    data = request.json
+    tipo = data.get('tipo') 
+    contenido = data.get('data')
+    modo = data.get('mode')
+    
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    if tipo == 'iniciar':
+        system_prompt = (
+            f"Eres un maestro del carisma y experto en crear mensajes rompehielos para apps de citas. "
+            f"Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar la conversación basado en la descripción dada. "
+            f"REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni piropos genéricos de internet. "
+            f"Alinea las 3 opciones de forma creativa con el tono: {modo}. "
+            f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni saludos."
+        )
+        user_prompt = f"Detalles del perfil: '{contenido}'."
+    else:
+        system_prompt = (
+            f"Eres un estratega experto en carisma y citas rápidas. "
+            f"Vas a recibir una conversación de chat. Sabes perfectamente que la primera línea 'Tú' corresponde al usuario, "
+            f"y los mensajes siguientes son la respuesta directa de la otra persona (ella). "
+            f"Tu tarea crucial es responder ÚNICAMENTE al último mensaje enviado por ella, usando el contexto anterior para que tenga sentido. "
+            f"Genera exactamente 3 opciones de réplica cortas, fluidas, magnéticas y auténticas. "
+            f"ENFOQUE SEGÚN MODO SELECCIONADO ({modo}): "
+            f"- Romántico: Atento, sutil, conectando lindo con alta seguridad. "
+            f"- Coqueto: Divertido, ingenioso, pícaro, haciéndola sonreír. "
+            f"- Picante: Atrevido, directo, magnético, con clase y misterio. "
+            f"- Provocativo: Un reto juguetón, usando psicología inversa. "
+            f"Formato estricto: Devuelve exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni explicaciones."
+        )
+        user_prompt = f"Conversación:\n{contenido}\n\nGenera 3 respuestas perfectas en modo {modo}."
+
+    payload_final = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.82
+    }
+
+    try:
+        r_final = requests.post(url, headers=headers, json=payload_final)
+        res_final = r_final.json()
+        resultado = res_final['choices'][0]['message']['content']
+        return jsonify({"resultado": resultado})
+    except Exception as e:
+        return jsonify({"resultado": f"Error en el motor: {str(e)}"})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
