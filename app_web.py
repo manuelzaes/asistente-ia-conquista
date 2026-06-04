@@ -1,10 +1,11 @@
 from flask import Flask, render_template_string, request, jsonify
 import requests
 import os
+import re
 
 app = Flask(__name__)
 
-# 1. CONFIGURACIÓN: API KEY de Groq
+# CONFIGURACIÓN: API KEY de Groq
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 HTML_TEMPLATE = """
@@ -15,21 +16,18 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spark IA - Tu Asistente de Conquista</title>
     <link rel="icon" href="https://fav.farm/⚡" />
-    <!-- Cargamos el lector de imágenes ultra rápido directamente en el navegador -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         body { background: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
         .container { max-width: 500px; margin: auto; }
         
-        /* Pestañas de Navegación */
         .tabs { display: flex; justify-content: space-around; margin-bottom: 20px; background: #1e1e1e; border-radius: 12px; padding: 5px; }
         .tab-btn { background: transparent; color: #888; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 50%; border-radius: 8px; }
         .tab-btn.active { background: #8A2BE2; color: white; box-shadow: 0 0 10px rgba(138, 43, 226, 0.5); }
         
-        /* Contenedores de Entrada */
         textarea { 
             width: 100%; 
-            height: 120px; 
+            height: 140px; 
             background: rgba(30, 30, 30, 0.7); 
             color: #ffffff; 
             border: 2px solid #8A2BE2; 
@@ -45,7 +43,6 @@ HTML_TEMPLATE = """
         }
         textarea:focus { border-color: #00D4FF; box-shadow: 0 0 20px rgba(0, 212, 255, 0.4); background: #1e1e1e; }
         
-        /* Zona de carga de archivos / Capturas */
         .file-zone {
             border: 2px dashed #8A2BE2;
             border-radius: 15px;
@@ -60,7 +57,6 @@ HTML_TEMPLATE = """
         .file-zone p { margin: 5px 0; font-size: 14px; color: #aaa; }
         .preview-img { max-height: 100px; display: none; margin: 10px auto; border-radius: 8px; border: 1px solid #8A2BE2; }
 
-        /* Botones de Estilo */
         .btn-rom, .btn-coq, .btn-pic, .btn-prov {
             border: none; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; margin-bottom: 12px; transition: 0.3s ease;
         }
@@ -84,15 +80,13 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente Avanzado de Conquista v3.5</div>
+        <div class="subtitle">Asistente Avanzado de Conquista v3.8</div>
         
-        <!-- Pestañas -->
         <div class="tabs">
             <button class="tab-btn active" id="tab-responder" onclick="cambiarModo('responder')">💬 Responder Chat</button>
             <button class="tab-btn" id="tab-iniciar" onclick="cambiarModo('iniciar')">✨ Iniciar Chat</button>
         </div>
         
-        <!-- Sección Opciones para Responder Chat (Texto o Imagen) -->
         <div id="section-responder">
             <div class="file-zone" onclick="document.getElementById('file-input').click()">
                 <p>📸 <strong>Sube la captura de pantalla</strong></p>
@@ -100,11 +94,10 @@ HTML_TEMPLATE = """
                 <input type="file" id="file-input" accept="image/*" onchange="previewAndProcessImage(this)">
                 <img id="img-preview" class="preview-img" src="" alt="Vista previa">
             </div>
-            <p style="color: #666; margin: 10px 0;">— O TAMBIÉN PUEDES PEGAR EL TEXTO —</p>
-            <textarea id="chat" placeholder="Escribe o pega el texto del chat aquí si no tienes captura..."></textarea>
+            <p style="color: #666; margin: 10px 0;">— CONTEXTO DETECTADO —</p>
+            <textarea id="chat" placeholder="Aquí aparecerá la conversación limpia de la captura..."></textarea>
         </div>
         
-        <!-- Sección Opciones para Iniciar Chat desde cero -->
         <div id="section-iniciar" style="display: none;">
             <textarea id="intereses" placeholder="Ejemplo: Se llama Lucía, le encanta entrenar en el gym y ver anime. Parece alguien alegre..."></textarea>
         </div>
@@ -136,7 +129,7 @@ HTML_TEMPLATE = """
             const status = document.getElementById('upload-status');
             
             if (input.files && input.files[0]) {
-                status.innerText = "⏳ Leyendo captura... Por favor espera.";
+                status.innerText = "⏳ Decodificando chat... Por favor espera.";
                 status.style.color = "#00D4FF";
                 
                 const reader = new FileReader();
@@ -149,11 +142,11 @@ HTML_TEMPLATE = """
                         'spa', 
                         { logger: m => console.log(m) }
                     ).then(({ data: { text } }) => {
-                        status.innerText = "✅ ¡Captura leída! Pulsa un modo abajo.";
+                        status.innerText = "✅ Conversación extraída correctamente.";
                         status.style.color = "#03dac6";
                         document.getElementById('chat').value = text; 
                     }).catch(err => {
-                        status.innerText = "❌ Error al leer la imagen. Intenta escribir abajo.";
+                        status.innerText = "❌ Error al leer la imagen.";
                         status.style.color = "#E63946";
                     });
                 }
@@ -183,7 +176,7 @@ HTML_TEMPLATE = """
                 if (chatTexto.trim() !== "") {
                     ejecutarPeticion({ tipo: 'texto', data: chatTexto, modo: modoEstratega });
                 } else {
-                    alert("Por favor, sube una captura o escribe el texto del chat.");
+                    alert("Por favor, sube una captura.");
                     resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
                 }
             } else {
@@ -196,6 +189,8 @@ HTML_TEMPLATE = """
                 ejecutarPeticion({ tipo: 'iniciar', data: datosPerfil, modo: modoEstratega });
             }
         }
+
+        function document_ready() {}
 
         function ejecutarPeticion(payload) {
             const resDiv = document.getElementById('res');
@@ -217,6 +212,33 @@ HTML_TEMPLATE = """
 </html>
 """
 
+def limpiar_basura_ocr(texto):
+    """
+    Filtro inteligente para quitar horas, palabras fantasma del OCR 
+    y formatear correctamente los emisores.
+    """
+    lineas = texto.split('\n')
+    lineas_limpias = []
+    
+    for linea in lineas:
+        l = linea.strip()
+        if not l:
+            continue
+            
+        # 1. Quitar basuras comunes de horas del OCR como "515 p.m.", "Talla 5:15", "a.m.", etc.
+        if re.search(r'(?i)(p\.?m\.?|a\.?m\.?|\d{2,4}\s*(pm|am)?)', l):
+            # Si contiene marcas de tiempo o la palabra 'talla/tala' junto a números, se ignora
+            if re.search(r'(?i)(talla|tala|tall|\d+)', l):
+                continue
+        
+        # 2. Limpiar barras verticales residuales del OCR ("| No es nada malo" -> "No es nada malo")
+        l = re.sub(r'^[\s|:.\-]+', '', l).strip()
+        
+        if l:
+            lineas_limpias.append(l)
+            
+    return "\n".join(lineas_limpias)
+
 @app.route('/')
 def home():
     return render_template_string(HTML_TEMPLATE)
@@ -236,36 +258,32 @@ def generar():
 
     if tipo == 'iniciar':
         system_prompt = (
-            f"Eres un maestro del carisma y experto en crear 'abrelatas' o mensajes rompehielos para apps de citas (como Liggo o Flechazo). "
+            f"Eres un maestro del carisma y experto en crear mensajes rompehielos para apps de citas. "
             f"Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar la conversación basado en la descripción dada. "
             f"REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni piropos genéricos de internet. "
             f"Alinea las 3 opciones de forma creativa con el tono: {modo}. "
-            f"- Romántico: Atento, sutil, enfocado en conectar de forma linda pero con alta seguridad. "
-            f"- Coqueto: Divertido, ingenioso, con una pizca de picardía que la haga sonreír. "
-            f"- Picante: Atrevido, directo, magnético, rompiendo el hielo con mucha clase y misterio. "
-            f"- Provocativo: Un reto juguetón, usando psicología inversa o un dilema divertido para que sienta ganas de responderte. "
             f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3), listas para copiar y mandar. Sin introducciones ni saludos."
         )
         user_prompt = f"Detalles del perfil o gustos de la chica: '{contenido}'. Fabrícame las 3 mejores opciones."
     else:
-        # AQUÍ ESTÁ EL CAMBIO CLAVE: Entrenamos al modelo para que ordene el desastre del OCR
+        # APLICAMOS LA LIMPIEZA ANTES DE ENVIAR A LA API
+        texto_filtrado = limpiar_basura_ocr(contenido)
+        
         system_prompt = (
-            f"Eres un experto en carisma, seducción moderna y dinámicas de chat en apps de citas (como Liggo o Flechazo). "
-            f"INSTRUCCIÓN DE FILTRADO OCR: El texto del chat que vas a recibir proviene de un lector óptico de imágenes, por lo que estará desordenado, mezclado con horas (p.m./a.m.) o marcas como 'Tú'. "
-            f"Tu primer paso es analizar ese desorden de forma lógica, identificar cuál es el hilo real de la conversación y aislar el último mensaje que envió la otra persona (ella) para responderle directamente. "
-            f"Tu misión es dar exactamente 3 opciones de respuestas cortas, fluidas, ingeniosas y que suenen 100% naturales, ideales para mensajería móvil. "
-            f"REGLA DE ORO: Evita sonar artificial, robótico o formal. Prohibido ser arrogante, intenso o pesado. "
-            f"Mantén siempre una vibra de alta confianza y tensión divertida. "
-            f"ESTILOS DE RESPUESTA SEGÚN EL MODO SELECCIONADO ({modo}): "
-            f"- Romántico: Dulce, tierno y detallista, pero moderno. Hazla sentir especial sin sonar necesitado. "
-            f"- Coqueto: Pícaro, divertido y seguro. Usa cumplidos inesperados o réplicas ingeniosas que la hagan reír. "
-            f"- Picante: Atrevido, magnético y directo. Genera tensión con mucha clase, elegancia y alta seguridad. "
-            f"- Provocativo: Un reto juguetón. Aplica el 'tira y afloja'. Sé ese villano encantador que pone un desafío inteligente para que ella busque ganar tu atención. "
-            f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3). No agregues introducciones, comentarios, ni textos extras antes o después."
+            f"Eres un estratega experto en carisma y citas rápidas. "
+            f"Vas a recibir una conversación limpia. Sabes perfectamente que las líneas que comiencen con o estén bajo la etiqueta 'Tú' corresponden al usuario, "
+            f"y los mensajes siguientes son la respuesta directa que la otra persona (ella) envió. "
+            f"Tu tarea crucial es responder ÚNICAMENTE al último mensaje enviado por ella, usando el contexto anterior para que tenga sentido. "
+            f"Genera exactamente 3 opciones de réplica cortas, fluidas, magnéticas y que suenen 100% humanas. "
+            f"ENFOQUE SEGÚN MODO SELECCIONADO ({modo}): "
+            f"- Romántico: Atento, sutil, conectando de forma linda pero con alta seguridad. "
+            f"- Coqueto: Divertido, ingenioso, con una pizca de picardía que la haga sonreír. "
+            f"- Picante: Atrevido, directo, magnético, rompiendo el hielo con mucha clase y misterio. "
+            f"- Provocativo: Un reto juguetón, usando un dilema divertido o psicología inversa para que busque tu aprobación. "
+            f"Formato estricto: Devuelve exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni explicaciones de ningún tipo."
         )
-        user_prompt = f"Texto bruto del chat (OCR):\n{contenido}\n\nAnaliza la estructura, descubre qué me está diciendo ella al final y genérame las 3 mejores opciones en modo {modo}."
+        user_prompt = f"Conversación procesada:\n{texto_filtrado}\n\nGenera 3 respuestas perfectas en base al último mensaje recibido en modo {modo}."
 
-    # ENVIAMOS AL CEREBRO Llama 3.3 70B
     payload_final = {
         "model": "llama-3.3-70b-versatile",
         "messages": [
