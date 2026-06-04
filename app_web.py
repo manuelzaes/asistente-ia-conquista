@@ -1,11 +1,10 @@
 from flask import Flask, render_template_string, request, jsonify
 import requests
 import os
-import base64
 
 app = Flask(__name__)
 
-# 1. CONFIGURACIÓN: Pega tu API KEY de Groq aquí o configúrala en Render
+# 1. CONFIGURACIÓN: API KEY de Groq
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 HTML_TEMPLATE = """
@@ -16,6 +15,8 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spark IA - Tu Asistente de Conquista</title>
     <link rel="icon" href="https://fav.farm/⚡" />
+    <!-- Cargamos el lector de imágenes ultra rápido directamente en el navegador -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         body { background: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
         .container { max-width: 500px; margin: auto; }
@@ -83,26 +84,29 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente Avanzado de Conquista v3.0</div>
+        <div class="subtitle">Asistente Avanzado de Conquista v3.2</div>
         
+        <!-- Pestañas -->
         <div class="tabs">
             <button class="tab-btn active" id="tab-responder" onclick="cambiarModo('responder')">💬 Responder Chat</button>
             <button class="tab-btn" id="tab-iniciar" onclick="cambiarModo('iniciar')">✨ Iniciar Chat</button>
         </div>
         
+        <!-- Sección Opciones para Responder Chat (Texto o Imagen) -->
         <div id="section-responder">
             <div class="file-zone" onclick="document.getElementById('file-input').click()">
                 <p>📸 <strong>Sube la captura de pantalla</strong></p>
-                <p style="font-size: 12px;">Haz clic aquí para seleccionar el screenshot del chat</p>
-                <input type="file" id="file-input" accept="image/*" onchange="previewImage(this)">
+                <p style="font-size: 12px;" id="upload-status">Haz clic aquí para seleccionar el screenshot del chat</p>
+                <input type="file" id="file-input" accept="image/*" onchange="previewAndProcessImage(this)">
                 <img id="img-preview" class="preview-img" src="" alt="Vista previa">
             </div>
             <p style="color: #666; margin: 10px 0;">— O TAMBIÉN PUEDES PEGAR EL TEXTO —</p>
             <textarea id="chat" placeholder="Escribe o pega el texto del chat aquí si no tienes captura..."></textarea>
         </div>
         
+        <!-- Sección Opciones para Iniciar Chat desde cero -->
         <div id="section-iniciar" style="display: none;">
-            <textarea id="intereses" placeholder="Ejemplo: Se llama Lucía, le encanta entrenar en el gym, ve anime (Naruto) y tiene fotos viajando. Parece alguien alegre y extrovertida..."></textarea>
+            <textarea id="intereses" placeholder="Ejemplo: Se llama Lucía, le encanta entrenar en el gym y ver anime. Parece alguien alegre..."></textarea>
         </div>
         
         <div style="margin-top: 20px;">
@@ -118,6 +122,7 @@ HTML_TEMPLATE = """
 
     <script>
         let modoApp = 'responder';
+        let textoExtraidoDeImagen = "";
 
         function cambiarModo(modo) {
             modoApp = modo;
@@ -127,13 +132,34 @@ HTML_TEMPLATE = """
             document.getElementById('section-iniciar').style.display = modo === 'iniciar' ? 'block' : 'none';
         }
 
-        function previewImage(input) {
+        // Lector OCR Inteligente ejecutado en el mismo celular
+        function previewAndProcessImage(input) {
             const preview = document.getElementById('img-preview');
+            const status = document.getElementById('upload-status');
+            
             if (input.files && input.files[0]) {
+                status.innerText = "⏳ Leyendo las letras de la captura... Por favor espera.";
+                status.style.color = "#00D4FF";
+                
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     preview.src = e.target.result;
                     preview.style.display = 'block';
+                    
+                    // Ejecuta el reconocimiento de texto localmente
+                    Tesseract.recognize(
+                        e.target.result,
+                        'spa', // Idioma español
+                        { logger: m => console.log(m) }
+                    ).then(({ data: { text } }) => {
+                        textoExtraidoDeImagen = text;
+                        status.innerText = "✅ ¡Captura leída con éxito!";
+                        status.style.color = "#03dac6";
+                        document.getElementById('chat').value = text; // Lo pega en el cuadro para que veas lo que leyó
+                    }).catch(err => {
+                        status.innerText = "❌ Error al leer la imagen. Intenta escribir el texto abajo.";
+                        status.style.color = "#E63946";
+                    });
                 }
                 reader.readAsDataURL(input.files[0]);
             }
@@ -143,41 +169,33 @@ HTML_TEMPLATE = """
             document.getElementById('chat').value = "";
             document.getElementById('intereses').value = "";
             document.getElementById('file-input').value = "";
+            textoExtraidoDeImagen = "";
             const preview = document.getElementById('img-preview');
             preview.src = "";
             preview.style.display = 'none';
+            const status = document.getElementById('upload-status');
+            status.innerText = "Haz clic aquí para seleccionar el screenshot del chat";
+            status.style.color = "#aaa";
             document.getElementById('res').innerText = "✨ Las sugerencias aparecerán aquí...";
         }
 
         function enviar(modoEstratega) {
             const resDiv = document.getElementById('res');
-            const fileInput = document.getElementById('file-input');
-            
             resDiv.innerText = "⏳ Spark IA está analizando estratégicamente...";
 
             if (modoApp === 'responder') {
                 const chatTexto = document.getElementById('chat').value;
                 
-                // Si hay una foto cargada, se procesa de forma prioritaria
-                if (fileInput.files && fileInput.files[0]) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const base64Image = e.target.result.split(',')[1];
-                        ejecutarPeticion({ tipo: 'imagen', data: base64Image, modo: modoEstratega });
-                    };
-                    reader.readAsDataURL(fileInput.files[0]);
-                } else if (chatTexto.trim() !== "") {
-                    // Si no hay foto pero sí texto escrito
+                if (chatTexto.trim() !== "") {
                     ejecutarPeticion({ tipo: 'texto', data: chatTexto, modo: modoEstratega });
                 } else {
-                    alert("Por favor, sube una captura de pantalla o pega el texto del chat.");
+                    alert("Por favor, sube una captura o escribe el texto del chat.");
                     resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
                 }
             } else {
-                // Modo Iniciar Conversación desde Cero
                 const datosPerfil = document.getElementById('intereses').value;
                 if (!datosPerfil.trim()) {
-                    alert("Por favor, escribe algunos gustos o detalles del perfil para fabricar los rompehielos.");
+                    alert("Por favor, escribe algunos detalles del perfil.");
                     resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
                     return;
                 }
@@ -197,7 +215,7 @@ HTML_TEMPLATE = """
                 resDiv.innerText = data.resultado;
             })
             .catch(error => {
-                resDiv.innerText = "❌ Error en el servidor. Revisa los logs de Render.";
+                resDiv.innerText = "❌ Error en el servidor. Inténtalo de nuevo.";
             });
         }
     </script>
@@ -212,7 +230,7 @@ def home():
 @app.route('/generar', methods=['POST'])
 def generar():
     data = request.json
-    tipo = data.get('tipo') # 'texto', 'imagen' o 'iniciar'
+    tipo = data.get('tipo') 
     contenido = data.get('data')
     modo = data.get('modo')
     
@@ -222,51 +240,21 @@ def generar():
         "Content-Type": "application/json"
     }
 
-    # CASO 1: EL USUARIO SUBIÓ UNA CAPTURA DE PANTALLA (IMAGEN)
-    if tipo == 'imagen':
-        # Primero usamos el modelo con ojos (Llama Vision) para extraer el chat de forma perfecta
-        payload_vision = {
-            "model": "llama-3.2-11b-vision-preview",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "Transcribe exactamente el texto de este chat de app de citas. Solo devuelve la transcripción directa de lo que dicen las personas, sin comentarios adicionales."},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{contenido}"}}
-                    ]
-                }
-            ],
-            "temperature": 0.1
-        }
-        try:
-            r_vision = requests.post(url, headers=headers, json=payload_vision)
-            res_vision = r_vision.json()
-            chat_extraido = res_vision['choices'][0]['message']['content']
-        except Exception as e:
-            return jsonify({"resultado": f"Error al procesar los ojos de la IA (Vision): {str(e)}"})
-        
-        # Una vez extraído el texto, se lo mandamos al modelo experto en conquista
-        texto_para_analizar = chat_extraido
-    else:
-        # Si es de texto o para iniciar, el contenido pasa directo
-        texto_para_analizar = contenido
-
-    # CONFIGURAMOS EL MENSAJE DEL SISTEMA SEGÚN EL MODO DEL PROYECTO
+    # SELECCIÓN DINÁMICA DE PROMPTS
     if tipo == 'iniciar':
         system_prompt = (
-            f"Eres un maestro del carisma y experto en crear 'abrelatas' o rompehielos para apps de citas (como Liggo o Flechazo). "
-            f"Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar la conversación según la descripción enviada. "
-            f"REGLA DE ORO: No uses frases hechas, clichés ni piropos básicos de internet. "
-            f"Alinea las 3 opciones con el tono: {modo}. "
-            f"- Romántico: Atento, sutil, enfocado en conectar de forma linda pero con personalidad. "
-            f"- Coqueto: Divertido, ingenioso, con una pizca de picardía sana. "
-            f"- Picante: Atrevido, directo y seguro, creando misterio instantáneo con mucha clase. "
-            f"- Provocativo: Un reto divertido, usando psicología inversa o un juego para que ella quiera responder. "
-            f"Formato estricto: Entrega exclusivamente las 3 opciones numeradas (1, 2, 3), listas para copiar y mandar. Cero explicaciones o introducciones."
+            f"Eres un maestro del carisma y experto en crear 'abrelatas' o mensajes rompehielos para apps de citas (como Liggo o Flechazo). "
+            f"Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar la conversación basado en la descripción dada. "
+            f"REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni piropos genéricos de internet. "
+            f"Alinea las 3 opciones de forma creativa con el tono: {modo}. "
+            f"- Romántico: Atento, sutil, enfocado en conectar de forma linda pero con alta seguridad. "
+            f"- Coqueto: Divertido, ingenioso, con una pizca de picardía que la haga sonreír. "
+            f"- Picante: Atrevido, directo, magnético, rompiendo el hielo con mucha clase y misterio. "
+            f"- Provocativo: Un reto juguetón, usando psicología inversa o un dilema divertido para que sienta ganas de responderte. "
+            f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3), listas para copiar y mandar. Sin introducciones ni saludos."
         )
-        user_prompt = f"Detalles del perfil o gustos: '{texto_para_analizar}'. Fabricame los 3 mejores mensajes de apertura."
+        user_prompt = f"Detalles del perfil o gustos de la chica: '{contenido}'. Fabrícame las 3 mejores opciones."
     else:
-        # Analizar conversación existente (ya sea que vino de texto directo o de OCR de imagen)
         system_prompt = (
             f"Eres un experto en carisma, seducción moderna y dinámicas de chat en apps de citas (como Liggo o Flechazo). "
             f"Tu misión es dar exactamente 3 opciones de respuestas cortas, fluidas, ingeniosas y que suenen 100% naturales, ideales para mensajería móvil. "
@@ -279,9 +267,9 @@ def generar():
             f"- Provocativo: Un reto juguetón. Aplica el 'tira y afloja'. Sé ese villano encantador que pone un desafío inteligente para que ella busque ganar tu atención. "
             f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3). No agregues introducciones, comentarios, ni textos extras antes o después."
         )
-        user_prompt = f"Contexto del chat actual:\n{texto_para_analizar}\n\nGenera las 3 mejores opciones para responder bajo el modo {modo}."
+        user_prompt = f"Contexto del chat actual:\n{contenido}\n\nGenera las 3 mejores opciones para responder bajo el modo {modo}."
 
-    # EJECUTAMOS EL CEREBRO DE CONQUISTA PRINCIPAL (Llama 3.3 70B)
+    # ENVIAMOS TODO DIRECTO AL NUEVO CEREBRO ESTABLE (Llama 3.3 70B)
     payload_final = {
         "model": "llama-3.3-70b-versatile",
         "messages": [
