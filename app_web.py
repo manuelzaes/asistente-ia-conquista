@@ -18,69 +18,120 @@ HTML_TEMPLATE = """
     <link rel="icon" href="https://fav.farm/⚡" />
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body { background: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
-        .container { max-width: 500px; margin: auto; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #121212; color: white; font-family: 'Segoe UI', sans-serif; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 650px; background: #1a1a1a; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
-        .tabs { display: flex; justify-content: space-around; margin-bottom: 20px; background: #1e1e1e; border-radius: 12px; padding: 5px; }
-        .tab-btn { background: transparent; color: #888; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 50%; border-radius: 8px; }
+        h2 { color: #bb86fc; text-align: center; margin-bottom: 5px; font-size: 24px; }
+        .subtitle { color: #888; font-size: 13px; text-align: center; margin-bottom: 20px; }
+        
+        /* Pestañas de Navegación */
+        .tabs { display: flex; justify-content: space-around; margin-bottom: 15px; background: #262626; border-radius: 12px; padding: 4px; }
+        .tab-btn { background: transparent; color: #888; border: none; padding: 8px 15px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 50%; border-radius: 8px; font-size: 14px; }
         .tab-btn.active { background: #8A2BE2; color: white; box-shadow: 0 0 10px rgba(138, 43, 226, 0.5); }
         
-        textarea { 
-            width: 100%; 
-            height: 140px; 
-            background: rgba(30, 30, 30, 0.7); 
-            color: #ffffff; 
-            border: 2px solid #8A2BE2; 
-            border-radius: 15px; 
-            padding: 15px; 
-            font-family: 'Segoe UI', sans-serif; 
-            font-size: 14px;
-            outline: none;
-            box-shadow: 0 0 10px rgba(138, 43, 226, 0.2);
-            transition: 0.3s ease;
-            resize: none;
-            box-sizing: border-box;
+        /* --- NUEVA DISTRIBUCIÓN HORIZONTAL --- */
+        .grid-inputs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
         }
-        textarea:focus { border-color: #00D4FF; box-shadow: 0 0 20px rgba(0, 212, 255, 0.4); background: #1e1e1e; }
+        .input-box {
+            flex: 1;
+            min-width: 0; /* Evita desbordamiento */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
         
+        /* Zona de carga de archivos */
         .file-zone {
             border: 2px dashed #8A2BE2;
             border-radius: 15px;
-            padding: 20px;
-            background: rgba(30, 30, 30, 0.5);
+            padding: 15px;
+            background: rgba(30, 30, 30, 0.6);
             cursor: pointer;
-            margin-bottom: 15px;
+            text-align: center;
+            height: 140px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             transition: 0.3s;
         }
         .file-zone:hover { border-color: #00D4FF; background: rgba(0, 212, 255, 0.05); }
         .file-zone input { display: none; }
-        .file-zone p { margin: 5px 0; font-size: 14px; color: #aaa; }
-        .preview-img { max-height: 100px; display: none; margin: 10px auto; border-radius: 8px; border: 1px solid #8A2BE2; }
+        .file-zone p { margin: 2px 0; font-size: 13px; color: #aaa; }
+        .preview-img { max-height: 50px; display: none; margin-top: 5px; border-radius: 6px; border: 1px solid #8A2BE2; }
 
-        .btn-rom, .btn-coq, .btn-pic, .btn-prov {
-            border: none; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; margin-bottom: 12px; transition: 0.3s ease;
+        /* Cuadro de Texto */
+        textarea { 
+            width: 100%; 
+            height: 140px; 
+            background: rgba(30, 30, 30, 0.6); 
+            color: #ffffff; 
+            border: 2px solid #8A2BE2; 
+            border-radius: 15px; 
+            padding: 12px; 
+            font-family: 'Segoe UI', sans-serif; 
+            font-size: 13px;
+            outline: none;
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.1);
+            transition: 0.3s ease;
+            resize: none;
         }
-        .btn-rom { background-color: #ee82ee; color: white; box-shadow: 0 0 15px rgba(138, 43, 226, 0.4); }
-        .btn-rom:hover { box-shadow: 0 0 25px rgba(138, 43, 226, 0.8); transform: scale(1.01); }
-        .btn-coq { background-color: #ed8002; color: white; box-shadow: 0 0 15px rgba(237, 128, 2, 0.4); }
-        .btn-coq:hover { box-shadow: 0 0 25px rgba(237, 128, 2, 0.8); transform: scale(1.01); }
-        .btn-pic { background-color: #E63946; color: white; box-shadow: 0 0 15px rgba(230, 57, 70, 0.4); }
-        .btn-pic:hover { box-shadow: 0 0 25px rgba(230, 57, 70, 0.8); transform: scale(1.01); }
-        .btn-prov { background-color: #a333ff; color: white; box-shadow: 0 0 15px rgba(163, 51, 255, 0.4); }
-        .btn-prov:hover { box-shadow: 0 0 25px rgba(163, 51, 255, 0.8); transform: scale(1.01); }
+        textarea:focus { border-color: #00D4FF; box-shadow: 0 0 15px rgba(0, 212, 255, 0.3); }
         
-        .btn-clear { background: transparent; color: #888; border: 1px solid #444; padding: 10px; border-radius: 10px; cursor: pointer; width: 50%; margin: 10px auto; display: block; transition: 0.3s; }
-        .btn-clear:hover { color: #fff; border-color: #fff; background-color: rgba(255, 255, 255, 0.1); }
+        /* --- BOTONES EN MATRIZ 2X2 --- */
+        .buttons-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
         
-        #res { background: #1e1e1e; padding: 15px; border-radius: 10px; text-align: left; white-space: pre-wrap; margin-top: 20px; border-left: 5px solid #03dac6; min-height: 50px; font-size: 15px; line-height: 1.5; }
-        h2 { color: #bb86fc; margin-bottom: 5px; }
-        .subtitle { color: #888; font-size: 14px; margin-bottom: 20px; }
+        .btn-rom, .btn-coq, .btn-pic, .btn-prov {
+            border: none; 
+            padding: 12px; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            font-size: 14px; 
+            cursor: pointer; 
+            transition: 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-rom { background-color: #ee82ee; color: white; box-shadow: 0 4px 10px rgba(138, 43, 226, 0.2); }
+        .btn-rom:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(138, 43, 226, 0.5); }
+        
+        .btn-coq { background-color: #ed8002; color: white; box-shadow: 0 4px 10px rgba(237, 128, 2, 0.2); }
+        .btn-coq:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(237, 128, 2, 0.5); }
+        
+        .btn-pic { background-color: #E63946; color: white; box-shadow: 0 4px 10px rgba(230, 57, 70, 0.2); }
+        .btn-pic:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(230, 57, 70, 0.5); }
+        
+        .btn-prov { background-color: #a333ff; color: white; box-shadow: 0 4px 10px rgba(163, 51, 255, 0.2); }
+        .btn-prov:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(163, 51, 255, 0.5); }
+        
+        .btn-clear { background: transparent; color: #666; border: 1px solid #333; padding: 6px; border-radius: 8px; cursor: pointer; width: 120px; margin: 0 auto 15px auto; display: block; transition: 0.3s; font-size: 12px; }
+        .btn-clear:hover { color: #fff; border-color: #aaa; }
+        
+        /* Cuadro de Resultados Superior */
+        #res { background: #222; padding: 15px; border-radius: 15px; text-align: left; white-space: pre-wrap; border-left: 5px solid #00D4FF; min-height: 60px; font-size: 14px; line-height: 1.5; box-shadow: inset 0 2px 10px rgba(0,0,0,0.3); }
+
+        /* Adaptación para celulares muy pequeños */
+        @media (max-width: 480px) {
+            .grid-inputs { flex-direction: column; gap: 10px; }
+            .file-zone, textarea { height: 120px; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente Avanzado de Conquista v3.8</div>
+        <div class="subtitle">Asistente de Conquista Compacto v4.0</div>
         
         <div class="tabs">
             <button class="tab-btn active" id="tab-responder" onclick="cambiarModo('responder')">💬 Responder Chat</button>
@@ -88,29 +139,35 @@ HTML_TEMPLATE = """
         </div>
         
         <div id="section-responder">
-            <div class="file-zone" onclick="document.getElementById('file-input').click()">
-                <p>📸 <strong>Sube la captura de pantalla</strong></p>
-                <p style="font-size: 12px;" id="upload-status">Haz clic aquí para seleccionar el screenshot del chat</p>
-                <input type="file" id="file-input" accept="image/*" onchange="previewAndProcessImage(this)">
-                <img id="img-preview" class="preview-img" src="" alt="Vista previa">
+            <div class="grid-inputs">
+                <div class="input-box">
+                    <div class="file-zone" onclick="document.getElementById('file-input').click()">
+                        <p>📸 <strong>Captura</strong></p>
+                        <p style="font-size: 11px; color: #777;" id="upload-status">Sube el screenshot aquí</p>
+                        <input type="file" id="file-input" accept="image/*" onchange="previewAndProcessImage(this)">
+                        <img id="img-preview" class="preview-img" src="" alt="Vista previa">
+                    </div>
+                </div>
+                <div class="input-box">
+                    <textarea id="chat" placeholder="Texto detectado o pégalo de forma manual..."></textarea>
+                </div>
             </div>
-            <p style="color: #666; margin: 10px 0;">— CONTEXTO DETECTADO —</p>
-            <textarea id="chat" placeholder="Aquí aparecerá la conversación limpia de la captura..."></textarea>
         </div>
         
-        <div id="section-iniciar" style="display: none;">
-            <textarea id="intereses" placeholder="Ejemplo: Se llama Lucía, le encanta entrenar en el gym y ver anime. Parece alguien alegre..."></textarea>
+        <div id="section-iniciar" style="display: none; margin-bottom: 15px;">
+            <textarea id="intereses" placeholder="Ejemplo: Se llama Lucía, le gusta ir al gym y el anime. Pídele salir de forma divertida..."></textarea>
         </div>
         
-        <div style="margin-top: 20px;">
-            <button class="btn-rom" onclick="enviar('Romántico')">💖 MODO ROMÁNTICO</button>
-            <button class="btn-coq" onclick="enviar('Coqueto')">😏 MODO COQUETO</button>
-            <button class="btn-pic" onclick="enviar('Picante')">🔥 MODO PICANTE</button>
-            <button class="btn-prov" onclick="enviar('Provocativo')">😈 MODO PROVOCATIVO</button>
-            <button class="btn-clear" onclick="limpiar()">🧹 Limpiar Todo</button>
+        <div class="buttons-container">
+            <button class="btn-rom" onclick="enviar('Romántico')">💖 ROMÁNTICO</button>
+            <button class="btn-coq" onclick="enviar('Coqueto')">😏 COQUETO</button>
+            <button class="btn-pic" onclick="enviar('Picante')">🔥 PICANTE</button>
+            <button class="btn-prov" onclick="enviar('Provocativo')">😈 PROVOCATIVO</button>
         </div>
+        
+        <button class="btn-clear" onclick="limpiar()">🧹 Limpiar Todo</button>
 
-        <div id="res">✨ Las sugerencias personalizadas aparecerán aquí...</div>
+        <div id="res">✨ Las sugerencias estratégicas aparecerán aquí directamente...</div>
     </div>
 
     <script>
@@ -124,12 +181,27 @@ HTML_TEMPLATE = """
             document.getElementById('section-iniciar').style.display = modo === 'iniciar' ? 'block' : 'none';
         }
 
+        function limpiarTextoFront(textoBruto) {
+            let lineas = textoBruto.split('\n');
+            let lineasFiltradas = [];
+            lineas.forEach(linea => {
+                let l = linea.trim();
+                if (!l) return;
+                if (/(p\.?m\.?|a\.?m\.?|\d{2,4})/i.test(l)) {
+                    if (/(talla|tala|tall|\d+)/i.test(l)) return;
+                }
+                l = l.replace(/^[\s|:\.\-]+/, '').trim();
+                if (l) lineasFiltradas.push(l);
+            });
+            return lineasFiltradas.join('\n');
+        }
+
         function previewAndProcessImage(input) {
             const preview = document.getElementById('img-preview');
             const status = document.getElementById('upload-status');
             
             if (input.files && input.files[0]) {
-                status.innerText = "⏳ Decodificando chat... Por favor espera.";
+                status.innerText = "⏳ Leyendo...";
                 status.style.color = "#00D4FF";
                 
                 const reader = new FileReader();
@@ -137,16 +209,13 @@ HTML_TEMPLATE = """
                     preview.src = e.target.result;
                     preview.style.display = 'block';
                     
-                    Tesseract.recognize(
-                        e.target.result,
-                        'spa', 
-                        { logger: m => console.log(m) }
-                    ).then(({ data: { text } }) => {
-                        status.innerText = "✅ Conversación extraída correctamente.";
+                    Tesseract.recognize(e.target.result, 'spa')
+                    .then(({ data: { text } }) => {
+                        status.innerText = "✅ ¡Listo!";
                         status.style.color = "#03dac6";
-                        document.getElementById('chat').value = text; 
+                        document.getElementById('chat').value = limpiarTextoFront(text); 
                     }).catch(err => {
-                        status.innerText = "❌ Error al leer la imagen.";
+                        status.innerText = "❌ Error";
                         status.style.color = "#E63946";
                     });
                 }
@@ -162,9 +231,9 @@ HTML_TEMPLATE = """
             preview.src = "";
             preview.style.display = 'none';
             const status = document.getElementById('upload-status');
-            status.innerText = "Haz clic aquí para seleccionar el screenshot del chat";
+            status.innerText = "Sube el screenshot aquí";
             status.style.color = "#aaa";
-            document.getElementById('res').innerText = "✨ Las sugerencias aparecerán aquí...";
+            document.getElementById('res').innerText = "✨ Las sugerencias estratégicas aparecerán aquí directamente...";
         }
 
         function enviar(modoEstratega) {
@@ -177,20 +246,18 @@ HTML_TEMPLATE = """
                     ejecutarPeticion({ tipo: 'texto', data: chatTexto, modo: modoEstratega });
                 } else {
                     alert("Por favor, sube una captura.");
-                    resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
+                    resDiv.innerText = "✨ Las sugerencias estratégicas aparecerán aquí directamente...";
                 }
             } else {
                 const datosPerfil = document.getElementById('intereses').value;
                 if (!datosPerfil.trim()) {
                     alert("Por favor, escribe algunos detalles del perfil.");
-                    resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
+                    resDiv.innerText = "✨ Las sugerencias estratégicas aparecerán aquí directamente...";
                     return;
                 }
                 ejecutarPeticion({ tipo: 'iniciar', data: datosPerfil, modo: modoEstratega });
             }
         }
-
-        function document_ready() {}
 
         function ejecutarPeticion(payload) {
             const resDiv = document.getElementById('res');
@@ -200,106 +267,9 @@ HTML_TEMPLATE = """
                 body: JSON.stringify(payload)
             })
             .then(response => response.json())
-            .then(data => {
-                resDiv.innerText = data.resultado;
-            })
-            .catch(error => {
-                resDiv.innerText = "❌ Error en el servidor. Inténtalo de nuevo.";
-            });
+            .then(data => { resDiv.innerText = data.resultado; })
+            .catch(error => { resDiv.innerText = "❌ Error en el servidor."; });
         }
     </script>
 </body>
 </html>
-"""
-
-def limpiar_basura_ocr(texto):
-    """
-    Filtro inteligente para quitar horas, palabras fantasma del OCR 
-    y formatear correctamente los emisores.
-    """
-    lineas = texto.split('\n')
-    lineas_limpias = []
-    
-    for linea in lineas:
-        l = linea.strip()
-        if not l:
-            continue
-            
-        # 1. Quitar basuras comunes de horas del OCR como "515 p.m.", "Talla 5:15", "a.m.", etc.
-        if re.search(r'(?i)(p\.?m\.?|a\.?m\.?|\d{2,4}\s*(pm|am)?)', l):
-            # Si contiene marcas de tiempo o la palabra 'talla/tala' junto a números, se ignora
-            if re.search(r'(?i)(talla|tala|tall|\d+)', l):
-                continue
-        
-        # 2. Limpiar barras verticales residuales del OCR ("| No es nada malo" -> "No es nada malo")
-        l = re.sub(r'^[\s|:.\-]+', '', l).strip()
-        
-        if l:
-            lineas_limpias.append(l)
-            
-    return "\n".join(lineas_limpias)
-
-@app.route('/')
-def home():
-    return render_template_string(HTML_TEMPLATE)
-
-@app.route('/generar', methods=['POST'])
-def generar():
-    data = request.json
-    tipo = data.get('tipo') 
-    contenido = data.get('data')
-    modo = data.get('modo')
-    
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    if tipo == 'iniciar':
-        system_prompt = (
-            f"Eres un maestro del carisma y experto en crear mensajes rompehielos para apps de citas. "
-            f"Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar la conversación basado en la descripción dada. "
-            f"REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni piropos genéricos de internet. "
-            f"Alinea las 3 opciones de forma creativa con el tono: {modo}. "
-            f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3), listas para copiar y mandar. Sin introducciones ni saludos."
-        )
-        user_prompt = f"Detalles del perfil o gustos de la chica: '{contenido}'. Fabrícame las 3 mejores opciones."
-    else:
-        # APLICAMOS LA LIMPIEZA ANTES DE ENVIAR A LA API
-        texto_filtrado = limpiar_basura_ocr(contenido)
-        
-        system_prompt = (
-            f"Eres un estratega experto en carisma y citas rápidas. "
-            f"Vas a recibir una conversación limpia. Sabes perfectamente que las líneas que comiencen con o estén bajo la etiqueta 'Tú' corresponden al usuario, "
-            f"y los mensajes siguientes son la respuesta directa que la otra persona (ella) envió. "
-            f"Tu tarea crucial es responder ÚNICAMENTE al último mensaje enviado por ella, usando el contexto anterior para que tenga sentido. "
-            f"Genera exactamente 3 opciones de réplica cortas, fluidas, magnéticas y que suenen 100% humanas. "
-            f"ENFOQUE SEGÚN MODO SELECCIONADO ({modo}): "
-            f"- Romántico: Atento, sutil, conectando de forma linda pero con alta seguridad. "
-            f"- Coqueto: Divertido, ingenioso, con una pizca de picardía que la haga sonreír. "
-            f"- Picante: Atrevido, directo, magnético, rompiendo el hielo con mucha clase y misterio. "
-            f"- Provocativo: Un reto juguetón, usando un dilema divertido o psicología inversa para que busque tu aprobación. "
-            f"Formato estricto: Devuelve exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni explicaciones de ningún tipo."
-        )
-        user_prompt = f"Conversación procesada:\n{texto_filtrado}\n\nGenera 3 respuestas perfectas en base al último mensaje recibido en modo {modo}."
-
-    payload_final = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        "temperature": 0.82
-    }
-
-    try:
-        r_final = requests.post(url, headers=headers, json=payload_final)
-        res_final = r_final.json()
-        resultado = res_final['choices'][0]['message']['content']
-        return jsonify({"resultado": resultado})
-    except Exception as e:
-        return jsonify({"resultado": f"Error en el motor de conquista: {str(e)}"})
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
