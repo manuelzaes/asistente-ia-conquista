@@ -24,7 +24,7 @@ HTML_TEMPLATE = """
         h2 { color: #bb86fc; text-align: center; margin-bottom: 5px; font-size: 24px; }
         .subtitle { color: #888; font-size: 13px; text-align: center; margin-bottom: 20px; }
         
-        /* Pestañas de Navigation */
+        /* Pestañas de Navegación */
         .tabs { display: flex; justify-content: space-around; margin-bottom: 15px; background: #262626; border-radius: 12px; padding: 4px; }
         .tab-btn { background: transparent; color: #888; border: none; padding: 8px 15px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 50%; border-radius: 8px; font-size: 14px; }
         .tab-btn.active { background: #8A2BE2; color: white; box-shadow: 0 0 10px rgba(138, 43, 226, 0.5); }
@@ -63,7 +63,7 @@ HTML_TEMPLATE = """
         .file-zone p { margin: 2px 0; font-size: 13px; color: #aaa; }
         .preview-img { max-height: 50px; display: none; margin-top: 5px; border-radius: 6px; border: 1px solid #8A2BE2; }
 
-        /* Cuadro de texto */
+        /* Cuadros de texto */
         textarea { 
             width: 100%; 
             height: 140px; 
@@ -81,15 +81,15 @@ HTML_TEMPLATE = """
         }
         textarea:focus { border-color: #00D4FF; box-shadow: 0 0 15px rgba(0, 212, 255, 0.3); }
         
-        /* REJILLA MATRIZ 2X2 */
+        /* REJILLA DE BOTONES ACTUALIZADA */
         .buttons-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
         
-        .btn-rom, .btn-coq, .btn-pic, .btn-prov {
+        .btn-rom, .btn-coq, .btn-pic, .btn-prov, .btn-save {
             border: none; 
             padding: 12px; 
             border-radius: 12px; 
@@ -114,6 +114,18 @@ HTML_TEMPLATE = """
         .btn-prov { background-color: #a333ff; color: white; }
         .btn-prov:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(163, 51, 255, 0.5); }
         
+        /* BOTÓN SALVAR EL MOMENTO (Ocupa las dos columnas abajo) */
+        .btn-save { 
+            background-color: #00D4FF; 
+            color: #121212; 
+            grid-column: span 2; 
+            margin-bottom: 15px;
+            font-size: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-save:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 212, 255, 0.6); }
+        
         .btn-clear { background: transparent; color: #666; border: 1px solid #333; padding: 6px; border-radius: 8px; cursor: pointer; width: 120px; margin: 0 auto 15px auto; display: block; transition: 0.3s; font-size: 12px; }
         .btn-clear:hover { color: #fff; border-color: #aaa; }
         
@@ -128,7 +140,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista Compacto v4.0</div>
+        <div class="subtitle">Asistente de Conquista Avanzado v4.2</div>
         
         <div class="tabs">
             <button class="tab-btn active" id="tab-responder" onclick="cambiarModo('responder')">💬 Responder Chat</button>
@@ -161,6 +173,8 @@ HTML_TEMPLATE = """
             <button class="btn-pic" onclick="enviar('Picante')">🔥 PICANTE</button>
             <button class="btn-prov" onclick="enviar('Provocativo')">😈 PROVOCATIVO</button>
         </div>
+        
+        <button class="btn-save" onclick="enviar('Salvar el Momento')">🚨 SALVAR EL MOMENTO</button>
         
         <button class="btn-clear" onclick="limpiar()">🧹 Limpiar Todo</button>
 
@@ -248,7 +262,7 @@ HTML_TEMPLATE = """
             } else {
                 const datosPerfil = document.getElementById('intereses').value;
                 if (!datosPerfil.trim()) {
-                    alert("Por favor, escribe algunos detalles del perfil.");
+                    alert("Por favor, escribe algunos detalles del perfil o contexto.");
                     resDiv.innerText = "✨ Las sugerencias estratégicas aparecerán aquí directamente...";
                     return;
                 }
@@ -292,12 +306,12 @@ def generar():
     if tipo == 'iniciar':
         system_prompt = (
             f"Eres un maestro del carisma y experto en crear mensajes rompehielos para apps de citas. "
-            f"Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar la conversación basado en la descripción dada. "
-            f"REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni piropos genéricos de internet. "
-            f"Alinea las 3 opciones de forma creativa con el tono: {modo}. "
+            f"Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar una conversación desde cero, basándote en la descripción o gustos dados. "
+            f"REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni piropos genéricos. Usa el enfoque del modo: {modo}. "
+            f"Si el modo es 'Salvar el Momento', asume que el usuario necesita un abridor de emergencia muy ingenioso para revivir el interés de alguien que dejó de responder o está cortante. "
             f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni saludos."
         )
-        user_prompt = f"Detalles del perfil: '{contenido}'."
+        user_prompt = f"Detalles del contexto/perfil: '{contenido}'."
     else:
         system_prompt = (
             f"Eres un estratega experto en carisma y citas rápidas. "
@@ -310,6 +324,7 @@ def generar():
             f"- Coqueto: Divertido, ingenioso, pícaro, haciéndola sonreír. "
             f"- Picante: Atrevido, directo, magnético, con clase y misterio. "
             f"- Provocativo: Un reto juguetón, usando psicología inversa. "
+            f"- Salvar el Momento: Un salvavidas de emergencia. Si ella fue cortante, fría, dejó un 'Mmmm' o un visto, genera respuestas ingeniosas, con humor autocrítico o un cambio de tema audaz que rompa la tensión y la obligue a responder de forma fluida. "
             f"Formato estricto: Devuelve exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni explicaciones."
         )
         user_prompt = f"Conversación:\n{contenido}\n\nGenera 3 respuestas perfectas en modo {modo}."
