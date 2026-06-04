@@ -68,7 +68,7 @@ HTML_TEMPLATE = """
             margin-bottom: 15px;
         }
         
-        /* Ajuste estricto: Todos los botones miden exactamente lo mismo */
+        /* Todos los botones miden exactamente lo mismo */
         .grid-btn {
             border: none; 
             height: 50px; 
@@ -113,7 +113,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista Estável v5.0</div>
+        <div class="subtitle">Asistente de Conquista v5.1</div>
         
         <div class="file-zone" onclick="document.getElementById('file-input').click()">
             <p>📸 <strong>Sube la captura de pantalla</strong></p>
@@ -124,7 +124,7 @@ HTML_TEMPLATE = """
         
         <div class="section-divider">— TEXTO DEL CHAT O DETALLES DEL PERFIL —</div>
         
-        <textarea id="chat-input" placeholder="Aquí aparecerá el texto de tu captura, o escribe los gustos de ella (ej: le gusta el café y viajar) para iniciar la conversación..."></textarea>
+        <textarea id="chat-input" placeholder="Para responder un chat: aquí aparecerá el texto de tu captura.\\n\\nPara iniciar un chat: puedes dejarlo vacío o escribir algún gusto de ella..."></textarea>
         
         <div class="buttons-grid">
             <button class="grid-btn btn-rom" onclick="enviar('Romántico')">💖 ROMÁNTICO</button>
@@ -199,8 +199,9 @@ HTML_TEMPLATE = """
             const resDiv = document.getElementById('res');
             const entradaTexto = document.getElementById('chat-input').value.trim();
 
-            if (entradaTexto === "") {
-                alert("Por favor, introduce texto o sube una captura primero.");
+            // CORRECCIÓN: Si es para iniciar chat, PERMITIR que la caja esté vacía
+            if (entradaTexto === "" && modoEstratega !== 'Iniciar Chat') {
+                alert("Por favor, introduce texto o sube una captura primero para responder.");
                 return;
             }
 
@@ -231,7 +232,7 @@ def home():
 @app.route('/generar', methods=['POST'])
 def generar():
     data = request.json
-    contenido = data.get('data')
+    contenido = data.get('data', '').strip()
     modo = data.get('mode')
     
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -240,17 +241,17 @@ def generar():
         "Content-Type": "application/json"
     }
 
-    # Lógica unificada para el botón de Iniciar Chat integrado
     if modo == 'Iniciar Chat':
+        # Cambiamos el prompt del sistema para que maneje de forma maestra el caso en blanco
         system_prompt = (
-            "Eres un maestro del carisma y experto en crear mensajes rompehielos para apps de citas. "
-            "Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar una conversación desde cero, basándote en la descripción, gustos o detalles provistos por el usuario en la caja de texto. "
-            "REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni piropos genéricos de internet. Sé ingenioso y magnético. "
+            "Eres un maestro supremo del carisma y experto en crear mensajes rompehielos letales para apps de citas. "
+            "Tu misión es dar exactamente 3 opciones CORTAS, magnéticas e intrigantes para iniciar una conversación desde cero. "
+            "REGLA DE ORO: Cero formalismos aburridos, cero saludos clichés como 'Hola cómo estás'. Deben ser abridores que generen curiosidad inmediata. "
+            "Si el usuario te da detalles del perfil, úsalos con ingenio. Si el campo viene vacío, genera 3 abridores universales ganadores, divertidos y audaces. "
             "Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni saludos de tu parte."
         )
-        user_prompt = f"Detalles del perfil o gustos de la persona: '{contenido}'."
+        user_prompt = f"Detalles provistos por el usuario: '{contenido if contenido else 'Ninguno, dame 3 abridores espectaculares desde cero'}'."
     else:
-        # Lógica de respuestas para chats existentes
         system_prompt = (
             f"Eres un estratega experto en carisma y citas rápidas. "
             f"Vas a recibir una conversación de chat. Sabes perfectamente que la primera línea 'Tú' corresponde al usuario, "
@@ -273,14 +274,13 @@ def generar():
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ],
-        "temperature": 0.82
+        "temperature": 0.85
     }
 
     try:
         r_final = requests.post(url, headers=headers, json=payload_final)
         res_final = r_final.json()
         
-        # CORRECCIÓN CLAVE: Validación estricta de la respuesta de Groq para evitar el error 'choices'
         if 'choices' in res_final and len(res_final['choices']) > 0:
             resultado = res_final['choices'][0]['message']['content']
         else:
