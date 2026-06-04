@@ -142,7 +142,7 @@ HTML_TEMPLATE = """
         <button class="btn-prov" onclick="enviar('Provocativo')">😈 MODO PROVOCATIVO</button>
         <button class="btn-clear" onclick="limpiar()">🧹 Limpiar Todo</button>
 
-        <div id="res">✨ Las sugerencias de Llama 3.3 aparecerán aquí...</div>
+        <div id="res">✨ Las sugerencias aparecerán aquí...</div>
     </div>
 
     <script>
@@ -168,7 +168,7 @@ HTML_TEMPLATE = """
                 resDiv.innerText = data.resultado;
             })
             .catch(error => {
-                resDiv.innerText = "❌ Error: Verifica la conexión con la laptop.";
+                resDiv.innerText = "❌ Error al conectar con el servidor.";
             });
         }
     </script>
@@ -193,25 +193,27 @@ def generar():
     }
     
     payload = {
-            "model": "llama-3.1-8b-instant",
+            # NUEVO MODELO: Llama 3.3 de 70 billones, mucho más inteligente y perspicaz
+            "model": "llama-3.3-70b-versatile",
             "messages": [
                {
                     "role": "system",
                     "content": (
-                        f"Eres un experto en seducción carismática y juguetona. Tu misión es dar 3 opciones CORTAS. "
-                        f"REGLA DE ORO: Prohibido ser grosero, arrogante o pesado. "
-                        f"Mantén siempre una vibra de confianza, misterio y tensión romántica. "
-                        f"NIVELES DE CONQUISTA: "
-                        f"- Romántico: Dulce, tierno y detallista. Hazla sentir especial. "
-                        f"- Coqueto: Pícaro y divertido. Usa cumplidos creativos o bromas que la hagan sonreír. "
-                        f"- Picante: Atrevido y directo. Genera tensión con mucha clase y seguridad. "
-                        f"- Provocativo: Un reto juguetón. Usa el 'tira y afloja'. Sé el villano encantador que hace bromas inteligentes para que ella quiera ganarse tu atención. "
-                        f"Formato: Solo entrega las 3 opciones numeradas."
+                        f"Eres un experto en carisma, seducción moderna y dinámicas de chat en apps de citas (como Liggo o Flechazo). "
+                        f"Tu misión es dar exactamente 3 opciones de respuestas cortas, fluidas, ingeniosas y que suenen 100% naturales, listas para usar en chat móvil. "
+                        f"REGLA DE ORO: Evita sonar como un robot, no uses lenguaje formal y está prohibido ser grosero, intenso o pesado. "
+                        f"Mantén siempre una vibra de alta confianza, misterio y tensión divertida. "
+                        f"ESTILOS DE RESPUESTA SEGÚN EL MODO: "
+                        f"- Romántico: Dulce, tierno y detallista, pero con estilo. Hazla sentir especial sin sonar desesperado. "
+                        f"- Coqueto: Pícaro, divertido y seguro. Usa cumplidos inesperados o bromas que le saquen una sonrisa. "
+                        f"- Picante: Atrevido, magnético y directo. Genera tensión sexual con mucha clase, elegancia y alta seguridad. "
+                        f"- Provocativo: Un reto juguetón. Aplica el 'tira y afloja'. Sé ese villano encantador que le pone un desafío divertido para que ella busque llamar tu atención. "
+                        f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3). No agregues saludos, explicaciones, ni textos extras antes o después."
                     )
                 },
-                {"role": "user", "content": f"Contexto: {modo}. Ella me puso: '{chat}'. Dame 3 respuestas para conquistarla."}
+                {"role": "user", "content": f"Modo: {modo}. Contexto del chat: '{chat}'. Genera las 3 mejores opciones para responderle."}
             ],
-            "temperature": 1.0
+            "temperature": 0.85 # Nivel ideal para respuestas creativas pero coherentes
         }
     
     try:
@@ -222,14 +224,8 @@ def generar():
     except Exception as e:
         return jsonify({"resultado": f"Error en la API: {str(e)}"})
 
-# --- ESTA ES LA LÍNEA CLAVE ---
 if __name__ == '__main__':
-    # host='0.0.0.0' permite conexiones externas (tu celular)
-    # port=5000 es el puerto que abriste en el Firewall
-
     app.run(host='0.0.0.0', port=5000, debug=True)
-
-
 
 
 
