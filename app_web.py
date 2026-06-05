@@ -79,7 +79,7 @@ HTML_TEMPLATE = """
         }
         .btn-base:hover { transform: translateY(-2px); }
 
-        /* Paleta con Brillo Neon e Intensidad Calibrada */
+        /* Paleta con Brillo Neon */
         .btn-rom { 
             background: linear-gradient(135deg, #ff71ce, #ee82ee); 
             box-shadow: 0 4px 15px rgba(238, 130, 238, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2); 
@@ -116,7 +116,7 @@ HTML_TEMPLATE = """
         }
         .btn-salvar:hover { box-shadow: 0 6px 25px rgba(0, 212, 255, 0.8); }
 
-        /* Botón Limpiar Estilizado Sutil */
+        /* Botón Limpiar Estilizado */
         .btn-limpiar-container { margin-top: 18px; display: flex; justify-content: center; }
         .btn-limpiar { background: #1a1a1a; border: 1px solid #333; color: #777; padding: 7px 20px; border-radius: 20px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px; cursor: pointer; transition: 0.3s; }
         .btn-limpiar:hover { background: #2a2a2a; color: #fff; border-color: #666; box-shadow: 0 0 10px rgba(255,255,255,0.05); }
@@ -129,7 +129,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v5.2</div>
+        <div class="subtitle">Asistente de Conquista v5.3</div>
         
         <div class="file-zone" onclick="document.getElementById('file-input').click()">
             <p>📸 <strong>Sube la captura de pantalla</strong></p>
@@ -206,12 +206,7 @@ HTML_TEMPLATE = """
             
             resDiv.innerText = "⏳ Spark IA está analizando estratégicamente...";
 
-            if (modoEstratega === 'Iniciar chat' && chatTexto.trim() === "") {
-                alert("Por favor, escribe algunos gustos o detalles en el cuadro de texto para armar los abridores.");
-                resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
-                return;
-            }
-
+            // CORRECCIÓN: Quitamos el alert restrictivo de "Iniciar Chat" para que funcione si se deja vacío
             if (modoEstratega !== 'Iniciar chat' && chatTexto.trim() === "") {
                 alert("Por favor, sube una captura de pantalla o escribe el mensaje que quieres responder.");
                 resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
@@ -271,17 +266,19 @@ def generar():
         "Content-Type": "application/json"
     }
 
-    # Creamos la cabecera dinámica que se pintará arriba en el output final
-    cabecera_titulo = f"╔═════════════════════════════════════╗\\n   ✨ SUGERENCIAS MODO {modo.upper()} \\n╚═════════════════════════════════════╝\\n\\n"
+    # CORRECCIÓN: Título limpio sin recuadros de líneas extrañas
+    cabecera_titulo = f"✨ OPCIONES MODO {modo.upper()}:\\n\\n"
 
     if modo == 'Iniciar chat':
+        # Prompt optimizado para responder con ideas generales si el usuario no ingresó un contexto específico
+        contexto_usuario = contenido.strip() if contenido else "intereses variados, divertida, casual y espontánea"
         system_prompt = (
             f"Eres un maestro del carisma y experto en crear mensajes rompehielos para apps de citas. "
-            f"Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar la conversación basado en los detalles dados. "
-            f"REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni piropos genéricos de internet. "
+            f"Tu misión es dar exactamente 3 opciones CORTAS, ingeniosas e impactantes para abrir el chat. "
+            f"REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni frases trilladas de internet. "
             f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3), listas para copiar y mandar. Sin introducciones ni saludos."
         )
-        user_prompt = f"Detalles del perfil o gustos de la persona: '{contenido}'. Fabrícame las 3 mejores opciones."
+        user_prompt = f"Detalles sugeridos para armar los abridores: '{contexto_usuario}'. Fabrícame las 3 mejores opciones."
     else:
         texto_filtrado = limpiar_basura_ocr(contenido)
         
@@ -315,7 +312,6 @@ def generar():
         res_final = r_final.json()
         resultado_ia = res_final['choices'][0]['message']['content']
         
-        # Unimos el título dinámico con el resultado numérico de la IA
         resultado_combinado = cabecera_titulo + resultado_ia
         return jsonify({"resultado": resultado_combinado})
     except Exception as e:
