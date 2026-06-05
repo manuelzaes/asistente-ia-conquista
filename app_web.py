@@ -33,12 +33,12 @@ HTML_TEMPLATE = """
             font-family: 'Segoe UI', sans-serif; 
             font-size: 14px;
             outline: none;
-            box-shadow: 0 0 10px rgba(138, 43, 226, 0.2);
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.25);
             transition: 0.3s ease;
             resize: none;
             box-sizing: border-box;
         }
-        textarea:focus { border-color: #00D4FF; box-shadow: 0 0 20px rgba(0, 212, 255, 0.4); background: #1e1e1e; }
+        textarea:focus { border-color: #00D4FF; box-shadow: 0 0 25px rgba(0, 212, 255, 0.45); background: #1e1e1e; }
         
         .file-zone {
             border: 2px dashed #8A2BE2;
@@ -49,67 +49,87 @@ HTML_TEMPLATE = """
             margin-bottom: 15px;
             transition: 0.3s;
         }
-        .file-zone:hover { border-color: #00D4FF; background: rgba(0, 212, 255, 0.05); }
+        .file-zone:hover { border-color: #00D4FF; background: rgba(0, 212, 255, 0.05); box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); }
         .file-zone input { display: none; }
         .file-zone p { margin: 5px 0; font-size: 14px; color: #aaa; }
         .preview-img { max-height: 100px; display: none; margin: 10px auto; border-radius: 8px; border: 1px solid #8A2BE2; }
 
-        /* CUADRÍCULA DE BOTONES EXACTA DE LA TARDE (2 Columnas por 3 Filas) */
+        /* CUADRÍCULA DE BOTONES CON BRILLO AVANZADO */
         .grid-botones {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: 14px;
             margin-top: 20px;
         }
 
         .btn-base {
-            border: none; 
-            padding: 15px 10px; 
-            border-radius: 12px; 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            padding: 16px 10px; 
+            border-radius: 14px; 
             font-weight: bold; 
             font-size: 14px; 
             cursor: pointer; 
-            transition: 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .btn-base:hover { transform: scale(1.02); }
+        .btn-base:hover { transform: translateY(-2px); }
 
-        /* Paleta de colores exacta de tu diseño anterior */
-        .btn-rom { background-color: #ee82ee; box-shadow: 0 0 15px rgba(238, 130, 238, 0.3); }
-        .btn-rom:hover { box-shadow: 0 0 25px rgba(238, 130, 238, 0.7); }
+        /* Paleta con Brillo Neon e Intensidad Calibrada */
+        .btn-rom { 
+            background: linear-gradient(135deg, #ff71ce, #ee82ee); 
+            box-shadow: 0 4px 15px rgba(238, 130, 238, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2); 
+        }
+        .btn-rom:hover { box-shadow: 0 6px 25px rgba(238, 130, 238, 0.8); }
         
-        .btn-coq { background-color: #ed8002; box-shadow: 0 0 15px rgba(237, 128, 2, 0.3); }
-        .btn-coq:hover { box-shadow: 0 0 25px rgba(237, 128, 2, 0.7); }
+        .btn-coq { 
+            background: linear-gradient(135deg, #ff9100, #ed8002); 
+            box-shadow: 0 4px 15px rgba(237, 128, 2, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2); 
+        }
+        .btn-coq:hover { box-shadow: 0 6px 25px rgba(237, 128, 2, 0.8); }
         
-        .btn-pic { background-color: #E63946; box-shadow: 0 0 15px rgba(230, 57, 70, 0.3); }
-        .btn-pic:hover { box-shadow: 0 0 25px rgba(230, 57, 70, 0.7); }
+        .btn-pic { 
+            background: linear-gradient(135deg, #ff4d5a, #E63946); 
+            box-shadow: 0 4px 15px rgba(230, 57, 70, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2); 
+        }
+        .btn-pic:hover { box-shadow: 0 6px 25px rgba(230, 57, 70, 0.8); }
         
-        .btn-prov { background-color: #a333ff; box-shadow: 0 0 15px rgba(163, 51, 255, 0.3); }
-        .btn-prov:hover { box-shadow: 0 0 25px rgba(163, 51, 255, 0.7); }
+        .btn-prov { 
+            background: linear-gradient(135deg, #b85cff, #a333ff); 
+            box-shadow: 0 4px 15px rgba(163, 51, 255, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2); 
+        }
+        .btn-prov:hover { box-shadow: 0 6px 25px rgba(163, 51, 255, 0.8); }
 
-        .btn-iniciar-modo { background-color: #00b4d8; box-shadow: 0 0 15px rgba(0, 180, 216, 0.3); }
-        .btn-iniciar-modo:hover { box-shadow: 0 0 25px rgba(0, 180, 216, 0.7); }
+        .btn-iniciar-modo { 
+            background: linear-gradient(135deg, #00f5ff, #00b4d8); 
+            box-shadow: 0 4px 15px rgba(0, 180, 216, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2); 
+        }
+        .btn-iniciar-modo:hover { box-shadow: 0 6px 25px rgba(0, 180, 216, 0.8); }
 
-        .btn-salvar { background-color: #00d4ff; box-shadow: 0 0 15px rgba(0, 212, 255, 0.3); }
-        .btn-salvar:hover { box-shadow: 0 0 25px rgba(0, 212, 255, 0.7); }
+        .btn-salvar { 
+            background: linear-gradient(135deg, #00fcfd, #00d4ff); 
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2); 
+        }
+        .btn-salvar:hover { box-shadow: 0 6px 25px rgba(0, 212, 255, 0.8); }
 
-        /* Botón Limpiar estilizado abajo de la cuadrícula */
-        .btn-limpiar-container { margin-top: 15px; display: flex; justify-content: center; }
-        .btn-limpiar { background: #1e1e1e; border: 1px solid #333; color: #888; padding: 6px 16px; border-radius: 20px; font-size: 12px; cursor: pointer; transition: 0.3s; }
-        .btn-limpiar:hover { background: #333; color: white; }
+        /* Botón Limpiar Estilizado Sutil */
+        .btn-limpiar-container { margin-top: 18px; display: flex; justify-content: center; }
+        .btn-limpiar { background: #1a1a1a; border: 1px solid #333; color: #777; padding: 7px 20px; border-radius: 20px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px; cursor: pointer; transition: 0.3s; }
+        .btn-limpiar:hover { background: #2a2a2a; color: #fff; border-color: #666; box-shadow: 0 0 10px rgba(255,255,255,0.05); }
         
-        #res { background: #1e1e1e; padding: 15px; border-radius: 10px; text-align: left; white-space: pre-wrap; margin-top: 20px; border-left: 5px solid #03dac6; min-height: 50px; font-size: 15px; line-height: 1.5; }
-        h2 { color: #bb86fc; margin-bottom: 5px; }
-        .subtitle { color: #888; font-size: 14px; margin-bottom: 20px; }
+        #res { background: #1e1e1e; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 22px; border-left: 5px solid #00D4FF; min-height: 50px; font-size: 15px; line-height: 1.6; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        h2 { color: #bb86fc; margin-bottom: 5px; font-size: 26px; font-weight: 800; letter-spacing: 0.5px; }
+        .subtitle { color: #888; font-size: 13px; margin-bottom: 22px; font-weight: 500; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v5.1</div>
+        <div class="subtitle">Asistente de Conquista v5.2</div>
         
         <div class="file-zone" onclick="document.getElementById('file-input').click()">
             <p>📸 <strong>Sube la captura de pantalla</strong></p>
@@ -118,16 +138,16 @@ HTML_TEMPLATE = """
             <img id="img-preview" class="preview-img" src="" alt="Vista previa">
         </div>
 
-        <p style="color: #666; margin: 10px 0; font-size: 12px; letter-spacing: 1px;">— TEXTO DEL CHAT O DETALLES DEL PERFIL —</p>
+        <p style="color: #555; margin: 12px 0; font-size: 11px; font-weight: bold; letter-spacing: 1.2px;">— TEXTO DEL CHAT O DETALLES DEL PERFIL —</p>
         <textarea id="chat" placeholder="Para responder un chat: aquí aparecerá el texto de tu captura.\\n\\nPara iniciar un chat: puedes dejarlo vacío o escribir algún gusto de ella..."></textarea>
         
         <div class="grid-botones">
-            <button class="btn-base btn-rom" onclick="enviar('Romántico')">💖 ROMÁNTICO</button>
-            <button class="btn-base btn-coq" onclick="enviar('Coqueto')">😏 COQUETO</button>
-            <button class="btn-base btn-pic" onclick="enviar('Picante')">🔥 PICANTE</button>
-            <button class="btn-base btn-prov" onclick="enviar('Provocativo')">😈 PROVOCATIVO</button>
-            <button class="btn-base btn-iniciar-modo" onclick="enviar('Iniciar chat')">✨ INICIAR CHAT</button>
-            <button class="btn-base btn-salvar" onclick="enviar('Salvar el momento')">🚨 SALVAR MOMENTO</button>
+            <button class="btn-base btn-rom" onclick="enviar('Romántico')">💖 Romántico</button>
+            <button class="btn-base btn-coq" onclick="enviar('Coqueto')">😏 Coqueto</button>
+            <button class="btn-base btn-pic" onclick="enviar('Picante')">🔥 Picante</button>
+            <button class="btn-base btn-prov" onclick="enviar('Provocativo')">😈 Provocativo</button>
+            <button class="btn-base btn-iniciar-modo" onclick="enviar('Iniciar chat')">✨ Iniciar Chat</button>
+            <button class="btn-base btn-salvar" onclick="enviar('Salvar el momento')">🚨 Salvar Momento</button>
         </div>
 
         <div class="btn-limpiar-container">
@@ -186,21 +206,18 @@ HTML_TEMPLATE = """
             
             resDiv.innerText = "⏳ Spark IA está analizando estratégicamente...";
 
-            // Si es iniciar chat puro y está vacío, pedir contexto
             if (modoEstratega === 'Iniciar chat' && chatTexto.trim() === "") {
                 alert("Por favor, escribe algunos gustos o detalles en el cuadro de texto para armar los abridores.");
                 resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
                 return;
             }
 
-            // Si intenta usar un modo de respuesta pero no hay texto
             if (modoEstratega !== 'Iniciar chat' && chatTexto.trim() === "") {
                 alert("Por favor, sube una captura de pantalla o escribe el mensaje que quieres responder.");
                 resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
                 return;
             }
 
-            // Enviamos todo unificado al backend
             fetch('/generar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -254,6 +271,9 @@ def generar():
         "Content-Type": "application/json"
     }
 
+    # Creamos la cabecera dinámica que se pintará arriba en el output final
+    cabecera_titulo = f"╔═════════════════════════════════════╗\\n   ✨ SUGERENCIAS MODO {modo.upper()} \\n╚═════════════════════════════════════╝\\n\\n"
+
     if modo == 'Iniciar chat':
         system_prompt = (
             f"Eres un maestro del carisma y experto en crear mensajes rompehielos para apps de citas. "
@@ -293,8 +313,11 @@ def generar():
     try:
         r_final = requests.post(url, headers=headers, json=payload_final)
         res_final = r_final.json()
-        resultado = res_final['choices'][0]['message']['content']
-        return jsonify({"resultado": resultado})
+        resultado_ia = res_final['choices'][0]['message']['content']
+        
+        # Unimos el título dinámico con el resultado numérico de la IA
+        resultado_combinado = cabecera_titulo + resultado_ia
+        return jsonify({"resultado": resultado_combinado})
     except Exception as e:
         return jsonify({"resultado": f"Error en el motor de conquista: {str(e)}"})
 
