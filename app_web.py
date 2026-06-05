@@ -22,10 +22,6 @@ HTML_TEMPLATE = """
         body { background: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
         .container { max-width: 500px; margin: auto; }
         
-        .tabs { display: flex; justify-content: space-around; margin-bottom: 20px; background: #1e1e1e; border-radius: 12px; padding: 5px; }
-        .tab-btn { background: transparent; color: #888; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 50%; border-radius: 8px; }
-        .tab-btn.active { background: #8A2BE2; color: white; box-shadow: 0 0 10px rgba(138, 43, 226, 0.5); }
-        
         textarea { 
             width: 100%; 
             height: 140px; 
@@ -58,7 +54,7 @@ HTML_TEMPLATE = """
         .file-zone p { margin: 5px 0; font-size: 14px; color: #aaa; }
         .preview-img { max-height: 100px; display: none; margin: 10px auto; border-radius: 8px; border: 1px solid #8A2BE2; }
 
-        /* CUADRÍCULA DE BOTONES: 2 Columnas y 3 Filas */
+        /* CUADRÍCULA DE BOTONES EXACTA DE LA TARDE (2 Columnas por 3 Filas) */
         .grid-botones {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -81,9 +77,9 @@ HTML_TEMPLATE = """
         }
         .btn-base:hover { transform: scale(1.02); }
 
-        /* Colores de los botones */
-        .btn-rom { background-color: #ee82ee; box-shadow: 0 0 15px rgba(138, 43, 226, 0.3); }
-        .btn-rom:hover { box-shadow: 0 0 25px rgba(138, 43, 226, 0.7); }
+        /* Paleta de colores exacta de tu diseño anterior */
+        .btn-rom { background-color: #ee82ee; box-shadow: 0 0 15px rgba(238, 130, 238, 0.3); }
+        .btn-rom:hover { box-shadow: 0 0 25px rgba(238, 130, 238, 0.7); }
         
         .btn-coq { background-color: #ed8002; box-shadow: 0 0 15px rgba(237, 128, 2, 0.3); }
         .btn-coq:hover { box-shadow: 0 0 25px rgba(237, 128, 2, 0.7); }
@@ -94,11 +90,16 @@ HTML_TEMPLATE = """
         .btn-prov { background-color: #a333ff; box-shadow: 0 0 15px rgba(163, 51, 255, 0.3); }
         .btn-prov:hover { box-shadow: 0 0 25px rgba(163, 51, 255, 0.7); }
 
-        .btn-salvar { background-color: #00b4d8; box-shadow: 0 0 15px rgba(0, 180, 216, 0.3); }
-        .btn-salvar:hover { box-shadow: 0 0 25px rgba(0, 180, 216, 0.7); }
+        .btn-iniciar-modo { background-color: #00b4d8; box-shadow: 0 0 15px rgba(0, 180, 216, 0.3); }
+        .btn-iniciar-modo:hover { box-shadow: 0 0 25px rgba(0, 180, 216, 0.7); }
 
-        .btn-accion { background-color: #2d3748; border: 1px solid #4a5568; color: #cbd5e0; }
-        .btn-accion:hover { background-color: #4a5568; color: white; }
+        .btn-salvar { background-color: #00d4ff; box-shadow: 0 0 15px rgba(0, 212, 255, 0.3); }
+        .btn-salvar:hover { box-shadow: 0 0 25px rgba(0, 212, 255, 0.7); }
+
+        /* Botón Limpiar estilizado abajo de la cuadrícula */
+        .btn-limpiar-container { margin-top: 15px; display: flex; justify-content: center; }
+        .btn-limpiar { background: #1e1e1e; border: 1px solid #333; color: #888; padding: 6px 16px; border-radius: 20px; font-size: 12px; cursor: pointer; transition: 0.3s; }
+        .btn-limpiar:hover { background: #333; color: white; }
         
         #res { background: #1e1e1e; padding: 15px; border-radius: 10px; text-align: left; white-space: pre-wrap; margin-top: 20px; border-left: 5px solid #03dac6; min-height: 50px; font-size: 15px; line-height: 1.5; }
         h2 { color: #bb86fc; margin-bottom: 5px; }
@@ -108,51 +109,35 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente Avanzado de Conquista v3.8</div>
+        <div class="subtitle">Asistente de Conquista v5.1</div>
         
-        <div class="tabs">
-            <button class="tab-btn active" id="tab-responder" onclick="cambiarModo('responder')">💬 Responder Chat</button>
-            <button class="tab-btn" id="tab-iniciar" onclick="cambiarModo('iniciar')">✨ Iniciar Chat</button>
+        <div class="file-zone" onclick="document.getElementById('file-input').click()">
+            <p>📸 <strong>Sube la captura de pantalla</strong></p>
+            <p style="font-size: 12px;" id="upload-status">Haz clic aquí para seleccionar el screenshot del chat</p>
+            <input type="file" id="file-input" accept="image/*" onchange="previewAndProcessImage(this)">
+            <img id="img-preview" class="preview-img" src="" alt="Vista previa">
         </div>
-        
-        <div id="section-responder">
-            <div class="file-zone" onclick="document.getElementById('file-input').click()">
-                <p>📸 <strong>Sube la captura de pantalla</strong></p>
-                <p style="font-size: 12px;" id="upload-status">Haz clic aquí para seleccionar el screenshot del chat</p>
-                <input type="file" id="file-input" accept="image/*" onchange="previewAndProcessImage(this)">
-                <img id="img-preview" class="preview-img" src="" alt="Vista previa">
-            </div>
-            <p style="color: #666; margin: 10px 0;">— CONTEXTO DETECTADO —</p>
-            <textarea id="chat" placeholder="Aquí aparecerá la conversación limpia de la captura..."></textarea>
-        </div>
-        
-        <div id="section-iniciar" style="display: none;">
-            <textarea id="intereses" placeholder="Ejemplo: Se llama Lucía, le encanta entrenar en el gym y ver anime. Parece alguien alegre..."></textarea>
-        </div>
+
+        <p style="color: #666; margin: 10px 0; font-size: 12px; letter-spacing: 1px;">— TEXTO DEL CHAT O DETALLES DEL PERFIL —</p>
+        <textarea id="chat" placeholder="Para responder un chat: aquí aparecerá el texto de tu captura.\\n\\nPara iniciar un chat: puedes dejarlo vacío o escribir algún gusto de ella..."></textarea>
         
         <div class="grid-botones">
             <button class="btn-base btn-rom" onclick="enviar('Romántico')">💖 ROMÁNTICO</button>
             <button class="btn-base btn-coq" onclick="enviar('Coqueto')">😏 COQUETO</button>
             <button class="btn-base btn-pic" onclick="enviar('Picante')">🔥 PICANTE</button>
             <button class="btn-base btn-prov" onclick="enviar('Provocativo')">😈 PROVOCATIVO</button>
+            <button class="btn-base btn-iniciar-modo" onclick="enviar('Iniciar chat')">✨ INICIAR CHAT</button>
             <button class="btn-base btn-salvar" onclick="enviar('Salvar el momento')">🚨 SALVAR MOMENTO</button>
-            <button class="btn-base btn-accion" onclick="limpiar()">🧹 LIMPIAR TODO</button>
+        </div>
+
+        <div class="btn-limpiar-container">
+            <button class="btn-limpiar" onclick="limpiar()">🖌️ Limpiar Todo</button>
         </div>
 
         <div id="res">✨ Las sugerencias personalizadas aparecerán aquí...</div>
     </div>
 
     <script>
-        let modoApp = 'responder';
-
-        function cambiarModo(modo) {
-            modoApp = modo;
-            document.getElementById('tab-responder').classList.toggle('active', modo === 'responder');
-            document.getElementById('tab-iniciar').classList.toggle('active', modo === 'iniciar');
-            document.getElementById('section-responder').style.display = modo === 'responder' ? 'block' : 'none';
-            document.getElementById('section-iniciar').style.display = modo === 'iniciar' ? 'block' : 'none';
-        }
-
         function previewAndProcessImage(input) {
             const preview = document.getElementById('img-preview');
             const status = document.getElementById('upload-status');
@@ -185,7 +170,6 @@ HTML_TEMPLATE = """
 
         function limpiar() {
             document.getElementById('chat').value = "";
-            document.getElementById('intereses').value = "";
             document.getElementById('file-input').value = "";
             const preview = document.getElementById('img-preview');
             preview.src = "";
@@ -198,33 +182,29 @@ HTML_TEMPLATE = """
 
         function enviar(modoEstratega) {
             const resDiv = document.getElementById('res');
+            const chatTexto = document.getElementById('chat').value;
+            
             resDiv.innerText = "⏳ Spark IA está analizando estratégicamente...";
 
-            if (modoApp === 'responder') {
-                const chatTexto = document.getElementById('chat').value;
-                if (chatTexto.trim() !== "") {
-                    ejecutarPeticion({ tipo: 'texto', data: chatTexto, modo: modoEstratega });
-                } else {
-                    alert("Por favor, sube una captura.");
-                    resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
-                }
-            } else {
-                const datosPerfil = document.getElementById('intereses').value;
-                if (!datosPerfil.trim()) {
-                    alert("Por favor, escribe algunos detalles del perfil.");
-                    resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
-                    return;
-                }
-                ejecutarPeticion({ tipo: 'iniciar', data: datosPerfil, modo: modoEstratega });
+            // Si es iniciar chat puro y está vacío, pedir contexto
+            if (modoEstratega === 'Iniciar chat' && chatTexto.trim() === "") {
+                alert("Por favor, escribe algunos gustos o detalles en el cuadro de texto para armar los abridores.");
+                resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
+                return;
             }
-        }
 
-        function ejecutarPeticion(payload) {
-            const resDiv = document.getElementById('res');
+            // Si intenta usar un modo de respuesta pero no hay texto
+            if (modoEstratega !== 'Iniciar chat' && chatTexto.trim() === "") {
+                alert("Por favor, sube una captura de pantalla o escribe el mensaje que quieres responder.");
+                resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
+                return;
+            }
+
+            // Enviamos todo unificado al backend
             fetch('/generar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ data: chatTexto, modo: modoEstratega })
             })
             .then(response => response.json())
             .then(data => {
@@ -240,26 +220,18 @@ HTML_TEMPLATE = """
 """
 
 def limpiar_basura_ocr(texto):
-    """
-    Filtro inteligente para quitar horas, palabras fantasma del OCR 
-    y formatear correctamente los emisores.
-    """
     lineas = texto.split('\n')
     lineas_limpias = []
-    
     for linea in lineas:
         l = linea.strip()
         if not l:
             continue
-            
         if re.search(r'(?i)(p\.?m\.?|a\.?m\.?|\d{2,4}\s*(pm|am)?)', l):
             if re.search(r'(?i)(talla|tala|tall|\d+)', l):
                 continue
-        
         l = re.sub(r'^[\s|:.\-]+', '', l).strip()
         if l:
             lineas_limpias.append(l)
-            
     return "\n".join(lineas_limpias)
 
 @app.route('/')
@@ -273,7 +245,6 @@ def ping():
 @app.route('/generar', methods=['POST'])
 def generar():
     data = request.json
-    tipo = data.get('tipo') 
     contenido = data.get('data')
     modo = data.get('modo')
     
@@ -283,27 +254,26 @@ def generar():
         "Content-Type": "application/json"
     }
 
-    if tipo == 'iniciar':
+    if modo == 'Iniciar chat':
         system_prompt = (
             f"Eres un maestro del carisma y experto en crear mensajes rompehielos para apps de citas. "
-            f"Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar la conversación basado en la descripción dada. "
+            f"Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar la conversación basado en los detalles dados. "
             f"REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni piropos genéricos de internet. "
-            f"Alinea las 3 opciones de forma creativa con el tono: {modo}. "
             f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3), listas para copiar y mandar. Sin introducciones ni saludos."
         )
-        user_prompt = f"Detalles del perfil o gustos de la chica: '{contenido}'. Fabrícame las 3 mejores opciones."
+        user_prompt = f"Detalles del perfil o gustos de la persona: '{contenido}'. Fabrícame las 3 mejores opciones."
     else:
         texto_filtrado = limpiar_basura_ocr(contenido)
         
         if modo == 'Salvar el momento':
             enfoque_modo = "Urgente, ingenioso y diseñado para revivir una conversación muerta, responder a un visto o salir elegantemente de un momento incómodo sin perder el valor."
         else:
-            enfoque_modo = f"Alineado estricta y creativamente al tono {modo}."
+            enfoque_modo = f"Alineado estrictamente al tono {modo}."
 
         system_prompt = (
             f"Eres un estratega experto en carisma y citas rápidas. "
-            f"Vas a recibir una conversación limpia del OCR. Sabes perfectamente que las líneas que comiencen con o estén bajo la etiqueta 'Tú' corresponden al usuario, "
-            f"y los mensajes siguientes son la respuesta directa que la otra persona (ella) envió. "
+            f"Vas a recibir una conversación limpia del OCR. Sabes perfectamente que las líneas de arriba corresponden al contexto "
+            f"y los mensajes finales son lo que la otra persona envió. "
             f"Tu tarea crucial es responder ÚNICAMENTE al último mensaje enviado por ella, usando el contexto anterior para que tenga sentido. "
             f"Genera exactamente 3 opciones de réplica cortas, fluidas, magnéticas y que suenen 100% humanas. "
             f"ENFOQUE DE RESPUESTA: {enfoque_modo} "
