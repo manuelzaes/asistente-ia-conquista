@@ -58,20 +58,47 @@ HTML_TEMPLATE = """
         .file-zone p { margin: 5px 0; font-size: 14px; color: #aaa; }
         .preview-img { max-height: 100px; display: none; margin: 10px auto; border-radius: 8px; border: 1px solid #8A2BE2; }
 
-        .btn-rom, .btn-coq, .btn-pic, .btn-prov {
-            border: none; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; margin-bottom: 12px; transition: 0.3s ease;
+        /* CONTENEDOR GRID: 2 Columnas y 3 Filas */
+        .grid-botones {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 20px;
         }
-        .btn-rom { background-color: #ee82ee; color: white; box-shadow: 0 0 15px rgba(138, 43, 226, 0.4); }
-        .btn-rom:hover { box-shadow: 0 0 25px rgba(138, 43, 226, 0.8); transform: scale(1.01); }
-        .btn-coq { background-color: #ed8002; color: white; box-shadow: 0 0 15px rgba(237, 128, 2, 0.4); }
-        .btn-coq:hover { box-shadow: 0 0 25px rgba(237, 128, 2, 0.8); transform: scale(1.01); }
-        .btn-pic { background-color: #E63946; color: white; box-shadow: 0 0 15px rgba(230, 57, 70, 0.4); }
-        .btn-pic:hover { box-shadow: 0 0 25px rgba(230, 57, 70, 0.8); transform: scale(1.01); }
-        .btn-prov { background-color: #a333ff; color: white; box-shadow: 0 0 15px rgba(163, 51, 255, 0.4); }
-        .btn-prov:hover { box-shadow: 0 0 25px rgba(163, 51, 255, 0.8); transform: scale(1.01); }
+
+        .btn-base {
+            border: none; 
+            padding: 15px 10px; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            font-size: 14px; 
+            cursor: pointer; 
+            transition: 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .btn-base:hover { transform: scale(1.02); }
+
+        /* Estilos de colores específicos para la cuadrícula */
+        .btn-rom { background-color: #ee82ee; box-shadow: 0 0 15px rgba(138, 43, 226, 0.3); }
+        .btn-rom:hover { box-shadow: 0 0 25px rgba(138, 43, 226, 0.7); }
         
-        .btn-clear { background: transparent; color: #888; border: 1px solid #444; padding: 10px; border-radius: 10px; cursor: pointer; width: 50%; margin: 10px auto; display: block; transition: 0.3s; }
-        .btn-clear:hover { color: #fff; border-color: #fff; background-color: rgba(255, 255, 255, 0.1); }
+        .btn-coq { background-color: #ed8002; box-shadow: 0 0 15px rgba(237, 128, 2, 0.3); }
+        .btn-coq:hover { box-shadow: 0 0 25px rgba(237, 128, 2, 0.7); }
+        
+        .btn-pic { background-color: #E63946; box-shadow: 0 0 15px rgba(230, 57, 70, 0.3); }
+        .btn-pic:hover { box-shadow: 0 0 25px rgba(230, 57, 70, 0.7); }
+        
+        .btn-prov { background-color: #a333ff; box-shadow: 0 0 15px rgba(163, 51, 255, 0.3); }
+        .btn-prov:hover { box-shadow: 0 0 25px rgba(163, 51, 255, 0.7); }
+
+        .btn-salvar { background-color: #00b4d8; box-shadow: 0 0 15px rgba(0, 180, 216, 0.3); }
+        .btn-salvar:hover { box-shadow: 0 0 25px rgba(0, 180, 216, 0.7); }
+
+        .btn-accion { background-color: #2d3748; border: 1px solid #4a5568; color: #cbd5e0; }
+        .btn-accion:hover { background-color: #4a5568; color: white; }
         
         #res { background: #1e1e1e; padding: 15px; border-radius: 10px; text-align: left; white-space: pre-wrap; margin-top: 20px; border-left: 5px solid #03dac6; min-height: 50px; font-size: 15px; line-height: 1.5; }
         h2 { color: #bb86fc; margin-bottom: 5px; }
@@ -103,12 +130,13 @@ HTML_TEMPLATE = """
             <textarea id="intereses" placeholder="Ejemplo: Se llama Lucía, le encanta entrenar en el gym y ver anime. Parece alguien alegre..."></textarea>
         </div>
         
-        <div style="margin-top: 20px;">
-            <button class="btn-rom" onclick="enviar('Romántico')">💖 MODO ROMÁNTICO</button>
-            <button class="btn-coq" onclick="enviar('Coqueto')">😏 MODO COQUETO</button>
-            <button class="btn-pic" onclick="enviar('Picante')">🔥 MODO PICANTE</button>
-            <button class="btn-prov" onclick="enviar('Provocativo')">😈 MODO PROVOCATIVO</button>
-            <button class="btn-clear" onclick="limpiar()">🧹 Limpiar Todo</button>
+        <div class="grid-botones">
+            <button class="btn-base btn-rom" onclick="enviar('Romántico')">💖 ROMÁNTICO</button>
+            <button class="btn-base btn-coq" onclick="enviar('Coqueto')">😏 COQUETO</button>
+            <button class="btn-base btn-pic" onclick="enviar('Picante')">🔥 PICANTE</button>
+            <button class="btn-base btn-prov" onclick="enviar('Provocativo')">😈 PROVOCATIVO</button>
+            <button class="btn-base btn-salvar" onclick="enviar('Salvar el momento')">🚨 SALVAR MOMENTO</button>
+            <button class="btn-base btn-accion" onclick="limpiar()">🧹 LIMPIAR TODO</button>
         </div>
 
         <div id="res">✨ Las sugerencias personalizadas aparecerán aquí...</div>
@@ -224,14 +252,11 @@ def limpiar_basura_ocr(texto):
         if not l:
             continue
             
-        # 1. Quitar basuras comunes de horas del OCR como "515 p.m.", "Talla 5:15", "a.m.", etc.
         if re.search(r'(?i)(p\.?m\.?|a\.?m\.?|\d{2,4}\s*(pm|am)?)', l):
             if re.search(r'(?i)(talla|tala|tall|\d+)', l):
                 continue
         
-        # 2. Limpiar barras verticales residuales del OCR
         l = re.sub(r'^[\s|:.\-]+', '', l).strip()
-        
         if l:
             lineas_limpias.append(l)
             
@@ -241,7 +266,6 @@ def limpiar_basura_ocr(texto):
 def home():
     return render_template_string(HTML_TEMPLATE)
 
-# RUTA DEL DESPERTADOR: Responde a los pings automáticos para evitar la suspensión
 @app.route('/ping')
 def ping():
     return jsonify({"status": "despierto"})
@@ -271,20 +295,22 @@ def generar():
     else:
         texto_filtrado = limpiar_basura_ocr(contenido)
         
+        # Ajuste estratégico si se presiona Salvar el Momento
+        if modo == 'Salvar el momento':
+            enfoque_modo = "Urgente, ingenioso y diseñado para revivir una conversación muerta, responder a un visto o salir elegantemente de un momento incómodo sin perder el valor."
+        else:
+            enfoque_modo = f"Alineado al tono {modo}."
+
         system_prompt = (
             f"Eres un estratega experto en carisma y citas rápidas. "
             f"Vas a recibir una conversación limpia del OCR. Sabes perfectamente que las líneas que comiencen con o estén bajo la etiqueta 'Tú' corresponden al usuario, "
             f"y los mensajes siguientes son la respuesta directa que la otra persona (ella) envió. "
             f"Tu tarea crucial es responder ÚNICAMENTE al último mensaje enviado por ella, usando el contexto anterior para que tenga sentido. "
             f"Genera exactamente 3 opciones de réplica cortas, fluidas, magnéticas y que suenen 100% humanas. "
-            f"ENFOQUE SEGÚN MODO SELECCIONADO ({modo}): "
-            f"- Romántico: Atento, sutil, conectando de forma linda pero con alta seguridad. "
-            f"- Coqueto: Divertido, ingenioso, con una pizca de picardía que la haga sonreír. "
-            f"- Picante: Atrevido, directo, magnético, rompiendo el hielo con mucha clase y misterio. "
-            f"- Provocativo: Un reto juguetón, usando un dilema divertido o psicología inversa para que busque tu aprobación. "
+            f"ENFOQUE DE RESPUESTA: {enfoque_modo} "
             f"Formato estricto: Devuelve exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni explicaciones de ningún tipo."
         )
-        user_prompt = f"Conversación procesada:\n{texto_filtrado}\n\nGenera 3 respuestas perfectas en base al último mensaje recibido en modo {modo}."
+        user_prompt = f"Conversación procesada:\n{texto_filtrado}\n\nGenera 3 respuestas perfectas en base al último mensaje recibido."
 
     payload_final = {
         "model": "llama-3.3-70b-versatile",
@@ -303,14 +329,12 @@ def generar():
     except Exception as e:
         return jsonify({"resultado": f"Error en el motor de conquista: {str(e)}"})
 
-# FUNCIÓN AUTOMÁTICA DE AUTO-PING
 def mantener_despierto():
     try:
         requests.get("https://asistente-ia-conquista.onrender.com/ping")
     except Exception:
         pass
 
-# Programador en segundo plano: manda un pulso cada 10 minutos
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=mantener_despierto, trigger="interval", minutes=10)
 scheduler.start()
