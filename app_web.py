@@ -2,6 +2,7 @@ from flask import Flask, render_template_string, request, jsonify
 import requests
 import os
 import re
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
@@ -240,6 +241,11 @@ def limpiar_basura_ocr(texto):
 def home():
     return render_template_string(HTML_TEMPLATE)
 
+# RUTA DEL DESPERTADOR: Responde a los pings automáticos para evitar la suspensión
+@app.route('/ping')
+def ping():
+    return jsonify({"status": "despierto"})
+
 @app.route('/generar', methods=['POST'])
 def generar():
     data = request.json
@@ -267,7 +273,7 @@ def generar():
         
         system_prompt = (
             f"Eres un estratega experto en carisma y citas rápidas. "
-            f"Vas a recibir una conversación limpia. Sabes perfectamente que las líneas que comiencen con o estén bajo la etiqueta 'Tú' corresponden al usuario, "
+            f"Vas a recibir una conversación limpia del OCR. Sabes perfectamente que las líneas que comiencen con o estén bajo la etiqueta 'Tú' corresponden al usuario, "
             f"y los mensajes siguientes son la respuesta directa que la otra persona (ella) envió. "
             f"Tu tarea crucial es responder ÚNICAMENTE al último mensaje enviado por ella, usando el contexto anterior para que tenga sentido. "
             f"Genera exactamente 3 opciones de réplica cortas, fluidas, magnéticas y que suenen 100% humanas. "
@@ -296,6 +302,18 @@ def generar():
         return jsonify({"resultado": resultado})
     except Exception as e:
         return jsonify({"resultado": f"Error en el motor de conquista: {str(e)}"})
+
+# FUNCIÓN AUTOMÁTICA DE AUTO-PING
+def mantener_despierto():
+    try:
+        requests.get("https://asistente-ia-conquista.onrender.com/ping")
+    except Exception:
+        pass
+
+# Programador en segundo plano: manda un pulso cada 10 minutos
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=mantener_despierto, trigger="interval", minutes=10)
+scheduler.start()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
