@@ -129,7 +129,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v5.3</div>
+        <div class="subtitle">Asistente de Conquista v5.4</div>
         
         <div class="file-zone" onclick="document.getElementById('file-input').click()">
             <p>📸 <strong>Sube la captura de pantalla</strong></p>
@@ -206,7 +206,6 @@ HTML_TEMPLATE = """
             
             resDiv.innerText = "⏳ Spark IA está analizando estratégicamente...";
 
-            // CORRECCIÓN: Quitamos el alert restrictivo de "Iniciar Chat" para que funcione si se deja vacío
             if (modoEstratega !== 'Iniciar chat' && chatTexto.trim() === "") {
                 alert("Por favor, sube una captura de pantalla o escribe el mensaje que quieres responder.");
                 resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
@@ -266,11 +265,10 @@ def generar():
         "Content-Type": "application/json"
     }
 
-    # CORRECCIÓN: Título limpio sin recuadros de líneas extrañas
-    cabecera_titulo = f"✨ OPCIONES MODO {modo.upper()}:\\n\\n"
+    # REPARADO: Saltos de línea de Python reales para que se procese el bloque de texto perfecto
+    cabecera_titulo = f"✨ OPCIONES MODO {modo.upper()}:\n\n"
 
     if modo == 'Iniciar chat':
-        # Prompt optimizado para responder con ideas generales si el usuario no ingresó un contexto específico
         contexto_usuario = contenido.strip() if contenido else "intereses variados, divertida, casual y espontánea"
         system_prompt = (
             f"Eres un maestro del carisma y experto en crear mensajes rompehielos para apps de citas. "
@@ -292,7 +290,7 @@ def generar():
             f"Vas a recibir una conversación limpia del OCR. Sabes perfectamente que las líneas de arriba corresponden al contexto "
             f"y los mensajes finales son lo que la otra persona envió. "
             f"Tu tarea crucial es responder ÚNICAMENTE al último mensaje enviado por ella, usando el contexto anterior para que tenga sentido. "
-            f"Genera exactamente 3 opciones de réplica cortas, fluidas, magnéticas y que suenen 100% humanas. "
+            f"Genera exactamente 3 opciones de réplica cortas, fluidas, magnéticas y que suonen 100% humanas. "
             f"ENFOQUE DE RESPUESTA: {enfoque_modo} "
             f"Formato estricto: Devuelve exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni explicaciones de ningún tipo."
         )
