@@ -1,11 +1,17 @@
 from flask import Flask, render_template_string, request, jsonify
 import requests
 import os
+# Importamos las librerías necesarias para el sistema anti-suspensión
+from apscheduler.schedulers.background import BackgroundScheduler
+import time
 
 app = Flask(__name__)
 
 # CONFIGURACIÓN: API KEY de Groq
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# CONFIGURACIÓN DEL DESPERTADOR: Pon aquí la URL exacta de tu aplicación en Render
+RENDER_APP_URL = "https://asistente-ia-conquista.onrender.com"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -113,7 +119,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v5.1</div>
+        <div class="subtitle">Asistente de Conquista v5.2</div>
         
         <div class="file-zone" onclick="document.getElementById('file-input').click()">
             <p>📸 <strong>Sube la captura de pantalla</strong></p>
@@ -199,7 +205,6 @@ HTML_TEMPLATE = """
             const resDiv = document.getElementById('res');
             const entradaTexto = document.getElementById('chat-input').value.trim();
 
-            // CORRECCIÓN: Si es para iniciar chat, PERMITIR que la caja esté vacía
             if (entradaTexto === "" && modoEstratega !== 'Iniciar Chat') {
                 alert("Por favor, introduce texto o sube una captura primero para responder.");
                 return;
@@ -225,9 +230,10 @@ HTML_TEMPLATE = """
 </html>
 """
 
-@app.route('/')
-def home():
-    return render_template_string(HTML_TEMPLATE)
+# NUEVA RUTA INTERNA: Recibe los autopings constantes del planificador
+@app.route('/ping')
+def ping():
+    return jsonify({"status": "despierto"})
 
 @app.route('/generar', methods=['POST'])
 def generar():
@@ -242,7 +248,6 @@ def generar():
     }
 
     if modo == 'Iniciar Chat':
-        # Cambiamos el prompt del sistema para que maneje de forma maestra el caso en blanco
         system_prompt = (
             "Eres un maestro supremo del carisma y experto en crear mensajes rompehielos letales para apps de citas. "
             "Tu misión es dar exactamente 3 opciones CORTAS, magnéticas e intrigantes para iniciar una conversación desde cero. "
@@ -289,6 +294,18 @@ def generar():
         return jsonify({"resultado": resultado})
     except Exception as e:
         return jsonify({"resultado": f"Error en el motor de la IA: {str(e)}"})
+
+# FUNCIÓN DEL DESPERTADOR: Realiza una solicitud GET interna para mantener vivo el proceso
+def mantener_despierto():
+    try:
+        requests.get(f"{RENDER_APP_URL}/ping")
+    except Exception as e:
+        pass
+
+# Configuramos e iniciamos el planificador en segundo plano (cada 10 minutos)
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=mantener_despierto, trigger="interval", minutes=10)
+scheduler.start()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
