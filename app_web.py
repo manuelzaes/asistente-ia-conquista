@@ -58,7 +58,7 @@ HTML_TEMPLATE = """
         .file-zone p { margin: 5px 0; font-size: 14px; color: #aaa; }
         .preview-img { max-height: 100px; display: none; margin: 10px auto; border-radius: 8px; border: 1px solid #8A2BE2; }
 
-        /* CONTENEDOR GRID: 2 Columnas y 3 Filas */
+        /* CUADRÍCULA DE BOTONES: 2 Columnas y 3 Filas */
         .grid-botones {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -81,7 +81,7 @@ HTML_TEMPLATE = """
         }
         .btn-base:hover { transform: scale(1.02); }
 
-        /* Estilos de colores específicos para la cuadrícula */
+        /* Colores de los botones */
         .btn-rom { background-color: #ee82ee; box-shadow: 0 0 15px rgba(138, 43, 226, 0.3); }
         .btn-rom:hover { box-shadow: 0 0 25px rgba(138, 43, 226, 0.7); }
         
@@ -295,11 +295,10 @@ def generar():
     else:
         texto_filtrado = limpiar_basura_ocr(contenido)
         
-        # Ajuste estratégico si se presiona Salvar el Momento
         if modo == 'Salvar el momento':
             enfoque_modo = "Urgente, ingenioso y diseñado para revivir una conversación muerta, responder a un visto o salir elegantemente de un momento incómodo sin perder el valor."
         else:
-            enfoque_modo = f"Alineado al tono {modo}."
+            enfoque_modo = f"Alineado estricta y creativamente al tono {modo}."
 
         system_prompt = (
             f"Eres un estratega experto en carisma y citas rápidas. "
