@@ -134,4 +134,168 @@ HTML_TEMPLATE = """
                 
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    preview.src = e.target.result
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    
+                    Tesseract.recognize(
+                        e.target.result,
+                        'spa', 
+                        { logger: m => console.log(m) }
+                    ).then(({ data: { text } }) => {
+                        status.innerText = "✅ Conversación extraída correctamente.";
+                        status.style.color = "#03dac6";
+                        document.getElementById('chat').value = text; 
+                    }).catch(err => {
+                        status.innerText = "❌ Error al leer la imagen.";
+                        status.style.color = "#E63946";
+                    });
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function limpiar() {
+            document.getElementById('chat').value = "";
+            document.getElementById('intereses').value = "";
+            document.getElementById('file-input').value = "";
+            const preview = document.getElementById('img-preview');
+            preview.src = "";
+            preview.style.display = 'none';
+            const status = document.getElementById('upload-status');
+            status.innerText = "Haz clic aquí para seleccionar el screenshot del chat";
+            status.style.color = "#aaa";
+            document.getElementById('res').innerText = "✨ Las sugerencias aparecerán aquí...";
+        }
+
+        function enviar(modoEstratega) {
+            const resDiv = document.getElementById('res');
+            resDiv.innerText = "⏳ Spark IA está analizando estratégicamente...";
+
+            if (modoApp === 'responder') {
+                const chatTexto = document.getElementById('chat').value;
+                if (chatTexto.trim() !== "") {
+                    ejecutarPeticion({ tipo: 'texto', data: chatTexto, modo: modoEstratega });
+                } else {
+                    alert("Por favor, sube una captura.");
+                    resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
+                }
+            } else {
+                const datosPerfil = document.getElementById('intereses').value;
+                if (!datosPerfil.trim()) {
+                    alert("Por favor, escribe algunos detalles del perfil.");
+                    resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
+                    return;
+                }
+                ejecutarPeticion({ tipo: 'iniciar', data: datosPerfil, modo: modoEstratega });
+            }
+        }
+
+        function ejecutarPeticion(payload) {
+            const resDiv = document.getElementById('res');
+            fetch('/generar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                resDiv.innerText = data.resultado;
+            })
+            .catch(error => {
+                resDiv.innerText = "❌ Error en el servidor. Inténtalo de nuevo.";
+            });
+        }
+    </script>
+</body>
+</html>
+"""
+
+def limpiar_basura_ocr(texto):
+    """
+    Filtro inteligente para quitar horas, palabras fantasma del OCR 
+    y formatear correctamente los emisores.
+    """
+    lineas = texto.split('\n')
+    lineas_limpias = []
+    
+    for linea in lineas:
+        l = linea.strip()
+        if not l:
+            continue
+            
+        # 1. Quitar basuras comunes de horas del OCR como "515 p.m.", "Talla 5:15", "a.m.", etc.
+        if re.search(r'(?i)(p\.?m\.?|a\.?m\.?|\d{2,4}\s*(pm|am)?)', l):
+            if re.search(r'(?i)(talla|tala|tall|\d+)', l):
+                continue
+        
+        # 2. Limpiar barras verticales residuales del OCR
+        l = re.sub(r'^[\s|:.\-]+', '', l).strip()
+        
+        if l:
+            lineas_limpias.append(l)
+            
+    return "\n".join(lineas_limpias)
+
+@app.route('/')
+def home():
+    return render_template_string(HTML_TEMPLATE)
+
+@app.route('/generar', methods=['POST'])
+def generar():
+    data = request.json
+    tipo = data.get('tipo') 
+    contenido = data.get('data')
+    modo = data.get('modo')
+    
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    if tipo == 'iniciar':
+        system_prompt = (
+            f"Eres un maestro del carisma y experto en crear mensajes rompehielos para apps de citas. "
+            f"Tu misión es dar exactamente 3 opciones CORTAS e impactantes para iniciar la conversación basado en la descripción dada. "
+            f"REGLA DE ORO: Cero formalismos, nada de clichés aburridos ni piropos genéricos de internet. "
+            f"Alinea las 3 opciones de forma creativa con el tono: {modo}. "
+            f"Formato estricto: Entrega exclusivamente las 3 opciones en una lista numerada (1, 2, 3), listas para copiar y mandar. Sin introducciones ni saludos."
+        )
+        user_prompt = f"Detalles del perfil o gustos de la chica: '{contenido}'. Fabrícame las 3 mejores opciones."
+    else:
+        texto_filtrado = limpiar_basura_ocr(contenido)
+        
+        system_prompt = (
+            f"Eres un estratega experto en carisma y citas rápidas. "
+            f"Vas a recibir una conversación limpia. Sabes perfectamente que las líneas que comiencen con o estén bajo la etiqueta 'Tú' corresponden al usuario, "
+            f"y los mensajes siguientes son la respuesta directa que la otra persona (ella) envió. "
+            f"Tu tarea crucial es responder ÚNICAMENTE al último mensaje enviado por ella, usando el contexto anterior para que tenga sentido. "
+            f"Genera exactamente 3 opciones de réplica cortas, fluidas, magnéticas y que suenen 100% humanas. "
+            f"ENFOQUE SEGÚN MODO SELECCIONADO ({modo}): "
+            f"- Romántico: Atento, sutil, conectando de forma linda pero con alta seguridad. "
+            f"- Coqueto: Divertido, ingenioso, con una pizca de picardía que la haga sonreír. "
+            f"- Picante: Atrevido, directo, magnético, rompiendo el hielo con mucha clase y misterio. "
+            f"- Provocativo: Un reto juguetón, usando un dilema divertido o psicología inversa para que busque tu aprobación. "
+            f"Formato estricto: Devuelve exclusivamente las 3 opciones en una lista numerada (1, 2, 3). Sin introducciones ni explicaciones de ningún tipo."
+        )
+        user_prompt = f"Conversación procesada:\n{texto_filtrado}\n\nGenera 3 respuestas perfectas en base al último mensaje recibido en modo {modo}."
+
+    payload_final = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.82
+    }
+
+    try:
+        r_final = requests.post(url, headers=headers, json=payload_final)
+        res_final = r_final.json()
+        resultado = res_final['choices'][0]['message']['content']
+        return jsonify({"resultado": resultado})
+    except Exception as e:
+        return jsonify({"resultado": f"Error en el motor de conquista: {str(e)}"})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
