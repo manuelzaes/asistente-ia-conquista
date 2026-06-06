@@ -121,15 +121,45 @@ HTML_TEMPLATE = """
         .btn-limpiar { background: #1a1a1a; border: 1px solid #333; color: #777; padding: 7px 20px; border-radius: 20px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px; cursor: pointer; transition: 0.3s; }
         .btn-limpiar:hover { background: #2a2a2a; color: #fff; border-color: #666; box-shadow: 0 0 10px rgba(255,255,255,0.05); }
         
-        #res { background: #1e1e1e; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 22px; border-left: 5px solid #00D4FF; min-height: 50px; font-size: 15px; line-height: 1.6; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        #res { 
+            background: #1e1e1e; 
+            padding: 18px; 
+            border-radius: 12px; 
+            text-align: left; 
+            white-space: pre-wrap; 
+            margin-top: 22px; 
+            border-left: 5px solid #00D4FF; 
+            min-height: 50px; 
+            font-size: 15px; 
+            line-height: 1.6; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: background 0.3s ease;
+        }
         h2 { color: #bb86fc; margin-bottom: 5px; font-size: 26px; font-weight: 800; letter-spacing: 0.5px; }
         .subtitle { color: #888; font-size: 13px; margin-bottom: 22px; font-weight: 500; }
+
+        /* ========================================================
+           NUEVOS ESTILOS INTERNOS: EFECTO SKELETON CELESTE/TURQUESA
+           ======================================================== */
+        @keyframes skeleton-glow {
+            0% { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+
+        .skeleton-loading {
+            background: linear-gradient(90deg, #1e1e1e 25%, #003647 50%, #1e1e1e 75%) !important;
+            background-size: 200% 100% !important;
+            animation: skeleton-glow 1.4s infinite linear !important;
+            color: transparent !important;
+            user-select: none;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v5.4</div>
+        <div class="subtitle">Asistente de Conquista v5.5</div>
         
         <div class="file-zone" onclick="document.getElementById('file-input').click()">
             <p>📸 <strong>Sube la captura de pantalla</strong></p>
@@ -204,10 +234,13 @@ HTML_TEMPLATE = """
             const resDiv = document.getElementById('res');
             const chatTexto = document.getElementById('chat').value;
             
-            resDiv.innerText = "⏳ Spark IA está analizando estratégicamente...";
+            // CORRECCIÓN VISUAL: Activamos el barrido degradado turquesa
+            resDiv.classList.add('skeleton-loading');
+            resDiv.innerText = "Cargando..."; 
 
             if (modoEstratega !== 'Iniciar chat' && chatTexto.trim() === "") {
                 alert("Por favor, sube una captura de pantalla o escribe el mensaje que quieres responder.");
+                resDiv.classList.remove('skeleton-loading');
                 resDiv.innerText = "✨ Las sugerencias aparecerán aquí...";
                 return;
             }
@@ -219,9 +252,12 @@ HTML_TEMPLATE = """
             })
             .then(response => response.json())
             .then(data => {
+                // Quitamos el efecto y soltamos las respuestas limpias
+                resDiv.classList.remove('skeleton-loading');
                 resDiv.innerText = data.resultado;
             })
             .catch(error => {
+                resDiv.classList.remove('skeleton-loading');
                 resDiv.innerText = "❌ Error en el servidor. Inténtalo de nuevo.";
             });
         }
@@ -265,7 +301,6 @@ def generar():
         "Content-Type": "application/json"
     }
 
-    # REPARADO: Saltos de línea de Python reales para que se procese el bloque de texto perfecto
     cabecera_titulo = f"✨ OPCIONES MODO {modo.upper()}:\n\n"
 
     if modo == 'Iniciar chat':
