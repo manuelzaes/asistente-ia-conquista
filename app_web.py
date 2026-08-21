@@ -1,15 +1,16 @@
 import os
+import re
 from flask import Flask, render_template_string, request, jsonify
 from groq import Groq
 
 app = Flask(__name__)
 
-# Configuración del cliente Groq con la API KEY del entorno
+# Configuración del cliente Groq
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Modelo de visión soportado por Groq
-MODELO_GROQ = "qwen/qwen3.6-27b"
+# Modelo rápido y directo sin razonamiento en inglés
+MODELO_GROQ = "llama-3.1-8b-instant"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -39,7 +40,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v6.1</div>
+        <div class="subtitle">Asistente de Conquista v6.2</div>
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
             <input type="file" id="file-input" accept="image/*" onchange="cargarImagen(event)" style="display:none;">
@@ -76,7 +77,7 @@ HTML_TEMPLATE = """
                 resDiv.innerText = "⚠️ Sube una imagen o da contexto.";
                 return;
             }
-            resDiv.innerHTML = '<span class="loading">🤔 Spark IA está pensando...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones en español...</span>';
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
@@ -103,60 +104,41 @@ def procesar():
         return jsonify({'error': 'GROQ_API_KEY no configurada.'}), 500
     
     data = request.json
-    imagen_b64 = data.get('imagen')
     texto_extra = data.get('texto_extra', '')
     modo = data.get('modo', 'Coqueto')
 
-    prompt_sistema = f"""
-Escribe OBLIGATORIAMENTE Y ÚNICAMENTE EN ESPAÑOL.
-Eres un experto en citas. Analiza la imagen enviada.
+    prompt = f"""
+Habla EXCLUSIVAMENTE en español latino.
+Eres un asistente de seducción y conquista.
 
-Tu tarea es entregar exactamente 3 opciones de respuesta en estilo **{modo}**.
+Proporciona EXACTAMENTE 3 opciones de respuesta para enviar por chat en tono **{modo}**.
 
-Formato REQUERIDO de salida (sin preámbulos, sin inglés, sin razonamiento previo):
+Formato obligatorio:
+1. "[Opción de respuesta 1]"
+📌 Por qué funciona: [Explicación en 1 sola línea corta]
 
-1. "[Respuesta para enviar]"
-📌 Por qué funciona: [Explicación de 1 sola línea corta]
+2. "[Opción de respuesta 2]"
+📌 Por qué funciona: [Explicación en 1 sola línea corta]
 
-2. "[Respuesta para enviar]"
-📌 Por qué funciona: [Explicación de 1 sola línea corta]
+3. "[Opción de respuesta 3]"
+📌 Por qué funciona: [Explicación en 1 sola línea corta]
 
-3. "[Respuesta para enviar]"
-📌 Por qué funciona: [Explicación de 1 sola línea corta]
-
-REGLAS STRICTAS:
-- CERO inglés. Todo en ESPAÑOL.
-- CERO borradores o análisis internos.
-- Usa contexto extra si lo hay: "{texto_extra}".
+Notas adicionales del usuario: "{texto_extra}".
+Prohibido escribir análisis previo o texto en inglés.
 """
-
-    messages = []
-    if imagen_b64:
-        messages.append({
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt_sistema},
-                {"type": "image_url", "image_url": {"url": imagen_b64}}
-            ]
-        })
-    else:
-        messages.append({
-            "role": "user",
-            "content": prompt_sistema
-        })
 
     try:
         completion = client.chat.completions.create(
             model=MODELO_GROQ,
-            messages=messages,
-            temperature=0.6,
-            max_tokens=600
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=400
         )
         respuesta_texto = completion.choices[0].message.content
         
-        # Filtrar si el modelo imprime etiquetas <think>...</think> de razonamiento interno
-        if "<think>" in respuesta_texto and "</think>" in respuesta_texto:
-            respuesta_texto = respuesta_texto.split("</think>")[-1].strip()
+        # Limpieza para asegurar que solo devuelva las respuestas en español
+        if "1." in respuesta_texto:
+            respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
 
         return jsonify({'respuesta': respuesta_texto})
     except Exception as e:
