@@ -8,19 +8,11 @@ app = Flask(__name__)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-def obtener_modelo_activo():
-    """Obtiene el nombre exacto (ID) del primer modelo de chat activo disponible en Groq."""
-    try:
-        modelos = client.models.list()
-        for m in modelos.data:
-            nombre = str(getattr(m, 'id', ''))
-            # Verificar que sea un modelo de texto activo y no un ID/timestamp aleatorio
-            if any(k in nombre.lower() for k in ["llama", "gemma", "mixtral"]):
-                return nombre
-        # Fallback al modelo estándar si no encuentra coincidencia en el bucle
-        return "llama-3.3-70b-versatile"
-    except Exception:
-        return "llama-3.3-70b-versatile"
+# Lista de modelos vigentes y activos en Groq
+MODELOS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant"
+]
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -55,7 +47,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v8.3</div>
+        <div class="subtitle">Asistente de Conquista v8.4</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -142,7 +134,7 @@ def procesar():
     modo = data.get('modo', 'Coqueto')
 
     prompt = f"""
-Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente de citas y seducción.
+Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente de citas.
 
 Entrega ÚNICAMENTE 3 opciones de respuesta en estilo **{modo.upper()}**.
 
@@ -163,22 +155,26 @@ REGLAS:
 - Contexto extra brindado por el usuario: "{texto_extra}".
 """
 
-    try:
-        modelo_activo = obtener_modelo_activo()
-        completion = client.chat.completions.create(
-            model=modelo_activo,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=500
-        )
-        respuesta_texto = completion.choices[0].message.content.strip()
-        
-        if "1." in respuesta_texto:
-            respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
+    ultimo_error = ""
+    for mod in MODELOS:
+        try:
+            completion = client.chat.completions.create(
+                model=mod,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=500
+            )
+            respuesta_texto = completion.choices[0].message.content.strip()
+            
+            if "1." in respuesta_texto:
+                respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
 
-        return jsonify({'respuesta': respuesta_texto})
-    except Exception as e:
-        return jsonify({'error': f"Error en API: {str(e)}"}), 500
+            return jsonify({'respuesta': respuesta_texto})
+        except Exception as e:
+            ultimo_error = str(e)
+            continue
+
+    return jsonify({'error': f"Error en API: {ultimo_error}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
