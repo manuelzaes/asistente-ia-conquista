@@ -1,5 +1,4 @@
 import os
-import re
 from flask import Flask, render_template_string, request, jsonify
 from groq import Groq
 
@@ -9,7 +8,7 @@ app = Flask(__name__)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Modelo rápido y directo sin razonamiento en inglés
+# Modelo rápido y directo sin razonamiento extenso
 MODELO_GROQ = "llama-3.1-8b-instant"
 
 HTML_TEMPLATE = """
@@ -40,7 +39,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v6.2</div>
+        <div class="subtitle">Asistente de Conquista v6.3</div>
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
             <input type="file" id="file-input" accept="image/*" onchange="cargarImagen(event)" style="display:none;">
@@ -77,7 +76,7 @@ HTML_TEMPLATE = """
                 resDiv.innerText = "⚠️ Sube una imagen o da contexto.";
                 return;
             }
-            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones en español...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones de respuesta...</span>';
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
@@ -108,23 +107,26 @@ def procesar():
     modo = data.get('modo', 'Coqueto')
 
     prompt = f"""
-Habla EXCLUSIVAMENTE en español latino.
-Eres un asistente de seducción y conquista.
+Escribe OBLIGATORIAMENTE Y ÚNICAMENTE EN ESPAÑOL.
+Eres un asistente de citas.
 
-Proporciona EXACTAMENTE 3 opciones de respuesta para enviar por chat en tono **{modo}**.
+ENTREGA ÚNICAMENTE Y DIRECTAMENTE LAS 3 OPCIONES EN ESTILO {modo.upper()}.
 
-Formato obligatorio:
-1. "[Opción de respuesta 1]"
-📌 Por qué funciona: [Explicación en 1 sola línea corta]
+Formato exacto de salida:
 
-2. "[Opción de respuesta 2]"
-📌 Por qué funciona: [Explicación en 1 sola línea corta]
+1. "[Frase para responder 1]"
+📌 Por qué funciona: [Explicación corta de 1 sola línea]
 
-3. "[Opción de respuesta 3]"
-📌 Por qué funciona: [Explicación en 1 sola línea corta]
+2. "[Frase para responder 2]"
+📌 Por qué funciona: [Explicación corta de 1 sola línea]
 
-Notas adicionales del usuario: "{texto_extra}".
-Prohibido escribir análisis previo o texto en inglés.
+3. "[Frase para responder 3]"
+📌 Por qué funciona: [Explicación corta de 1 sola línea]
+
+REGLAS STRICTAS:
+- NO escribas introducciones, ni saludos, ni análisis técnico.
+- NO uses idioma inglés.
+- Contexto adicional opcional: "{texto_extra}".
 """
 
     try:
@@ -136,7 +138,7 @@ Prohibido escribir análisis previo o texto en inglés.
         )
         respuesta_texto = completion.choices[0].message.content
         
-        # Limpieza para asegurar que solo devuelva las respuestas en español
+        # Filtro de seguridad para recortar cualquier texto innecesario antes del "1."
         if "1." in respuesta_texto:
             respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
 
