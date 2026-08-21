@@ -9,7 +9,7 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # Definición del modelo (Solución al error 'not defined')
-MODELO_GROQ = "llama-3.1-8b-instant"
+MODELO_GROQ = "llama-3.3-70b-versatile"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
