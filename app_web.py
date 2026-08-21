@@ -8,8 +8,14 @@ app = Flask(__name__)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Definición del modelo (Solución al error 'not defined')
-MODELO_GROQ = "llama-3.3-70b-versatile"
+# Lista priorizada de modelos activos en Groq (se probarán en orden si uno falla)
+MODELOS_GROQ = [
+    "llama-3.1-8b-instant",
+    "llama-3.3-70b-versatile",
+    "llama3-70b-8192",
+    "gemma2-9b-it",
+    "mixtral-8x7b-32768"
+]
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -44,7 +50,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v7.3</div>
+        <div class="subtitle">Asistente de Conquista v8.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -100,7 +106,7 @@ HTML_TEMPLATE = """
                 resDiv.innerText = "⚠️ Sube una imagen o da contexto.";
                 return;
             }
-            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones de respuesta...</span>';
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
@@ -153,21 +159,28 @@ REGLAS ESTRICTAS:
 - Contexto aportado por el usuario: "{texto_extra}".
 """
 
-    try:
-        completion = client.chat.completions.create(
-            model=MODELO_GROQ,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=400
-        )
-        respuesta_texto = completion.choices[0].message.content
-        
-        if "1." in respuesta_texto:
-            respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
+    ultimo_error = None
 
-        return jsonify({'respuesta': respuesta_texto})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    # Recorrer la lista de modelos de respaldo hasta que uno funcione
+    for modelo in MODELOS_GROQ:
+        try:
+            completion = client.chat.completions.create(
+                model=modelo,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=400
+            )
+            respuesta_texto = completion.choices[0].message.content
+            
+            if "1." in respuesta_texto:
+                respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
+
+            return jsonify({'respuesta': respuesta_texto})
+        except Exception as e:
+            ultimo_error = str(e)
+            continue
+
+    return jsonify({'error': f"Ningún modelo respondió con éxito. Último error: {ultimo_error}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
