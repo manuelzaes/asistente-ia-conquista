@@ -1,18 +1,21 @@
 import os
+import base64
+import io
 from flask import Flask, render_template_string, request, jsonify
 from groq import Groq
+from PIL import Image
+import pytesseract
 
 app = Flask(__name__)
 
-# Configuración del cliente Groq
+# Configuración de la API de Groq
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Lista priorizada de modelos compatibles y activos en la API de Groq
-MODELOS_CANDIDATOS = [
-    "llama-3.3-70b-versatile",
+# Lista de modelos de respaldo activos en Groq
+MODELOS = [
     "llama-3.1-8b-instant",
-    "openai/gpt-oss-120b",
+    "llama-3.3-70b-versatile",
     "openai/gpt-oss-20b"
 ]
 
@@ -75,6 +78,7 @@ HTML_TEMPLATE = """
 
     <script>
         let imagenBase64 = null;
+
         function cargarImagen(event) {
             const file = event.target.files[0];
             if (file) {
@@ -101,11 +105,14 @@ HTML_TEMPLATE = """
         async function generarRespuesta(modo) {
             const resDiv = document.getElementById('res');
             const textoExtra = document.getElementById('texto-adicional').value;
+            
             if (!imagenBase64 && !textoExtra.trim() && modo !== 'Iniciar Conversación') {
                 resDiv.innerText = "⚠️ Sube una imagen o da contexto.";
                 return;
             }
-            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones de respuesta...</span>';
+            
+            resDiv.innerHTML = '<span class="loading">🤔 Procesando y generando opciones...</span>';
+            
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
@@ -113,9 +120,14 @@ HTML_TEMPLATE = """
                     body: JSON.stringify({ imagen: imagenBase64, texto_extra: textoExtra, modo: modo })
                 });
                 const data = await response.json();
-                if (data.respuesta) { resDiv.innerText = data.respuesta; }
-                else { resDiv.innerText = "❌ Error: " + (data.error || "Desconocido"); }
-            } catch (err) { resDiv.innerText = "❌ Error de conexión."; }
+                if (data.respuesta) { 
+                    resDiv.innerText = data.respuesta; 
+                } else { 
+                    resDiv.innerText = "❌ Error: " + (data.error || "Desconocido"); 
+                }
+            } catch (err) { 
+                resDiv.innerText = "❌ Error de conexión con el servidor."; 
+            }
         }
     </script>
 </body>
@@ -126,29 +138,31 @@ HTML_TEMPLATE = """
 def home():
     return render_template_string(HTML_TEMPLATE)
 
-def obtener_modelo_activo():
-
-    # 1. Intentar consultar dinámicamente la lista de modelos devueltos por la API de Groq
+def extraer_texto_imagen(base64_str):
+    if not base64_str:
+        return ""
     try:
-        modelos_disponibles = client.models.list()
-        for m in modelos_disponibles.data:
-            model_id = getattr(m, 'id', '')
-            if any(cand in model_id for cand in MODELOS_CANDIDATOS):
-                return model_id
+        if "," in base64_str:
+            base64_str = base64_str.split(",")[1]
+        image_data = base64.b64decode(base64_str)
+        img = Image.open(io.BytesIO(image_data))
+        texto = pytesseract.image_to_string(img, lang='spa+eng')
+        return texto.strip()
     except Exception:
-        pass
-    
-    # 2. Retornar el modelo por defecto si la lista falla
-    return MODELOS_CANDIDATOS[0]
+        return ""
 
 @app.route('/procesar', methods=['POST'])
 def procesar():
     if not client:
-        return jsonify({'error': 'GROQ_API_KEY no configurada en las variables de entorno.'}), 500
+        return jsonify({'error': 'GROQ_API_KEY no configurada.'}), 500
     
-    data = request.json
+    data = request.json or {}
+    imagen_b64 = data.get('imagen')
     texto_extra = data.get('texto_extra', '')
     modo = data.get('modo', 'Coqueto')
+
+    # Extraer texto del OCR si se envió imagen
+    texto_captura = extraer_texto_imagen(imagen_b64)
 
     prompt = f"""
 Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente de citas.
@@ -169,19 +183,16 @@ Formato obligatorio de salida:
 REGLAS:
 - NO escribas intros, saludos ni análisis previos.
 - Empieza directamente con "1.".
-- Contexto extra brindado por el usuario: "{texto_extra}".
+- Texto extraído del chat: "{texto_captura}"
+- Contexto adicional: "{texto_extra}"
 """
 
-    # Probar modelos disponibles en orden si el primero retorna error de acceso
-    modelos_a_probar = [obtener_modelo_activo()] + MODELOS_CANDIDATOS
-    # Remover duplicados manteniendo orden
-    modelos_unicos = list(dict.fromkeys(modelos_a_probar))
-
-    ultimo_error = ""
-    for model_id in modelos_unicos:
+    # Probar modelos disponibles en orden de prioridad
+    error_log = []
+    for model_name in MODELOS:
         try:
             completion = client.chat.completions.create(
-                model=model_id,
+                model=model_name,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
                 max_tokens=500
@@ -193,10 +204,10 @@ REGLAS:
 
             return jsonify({'respuesta': respuesta_texto})
         except Exception as e:
-            ultimo_error = str(e)
+            error_log.append(f"{model_name}: {str(e)}")
             continue
 
-    return jsonify({'error': f"Error en API: {ultimo_error}"}), 500
+    return jsonify({'error': f"Fallo en modelos de Groq: {' | '.join(error_log)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
