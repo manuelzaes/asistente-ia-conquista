@@ -1,4 +1,5 @@
 import os
+import base64
 from flask import Flask, render_template_string, request, jsonify
 from groq import Groq
 
@@ -8,8 +9,8 @@ app = Flask(__name__)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Modelo de visión activo en Groq
-MODELO_GROQ = "llama-3.2-11b-vision-preview"
+# Modelo de texto ultra estable
+MODELO_GROQ = "llama-3.3-70b-versatile"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -23,37 +24,51 @@ HTML_TEMPLATE = """
         .container { max-width: 500px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 20px; }
         h2 { color: #bb86fc; margin-bottom: 5px; }
         .subtitle { color: #888; font-size: 14px; margin-bottom: 20px; }
-        .upload-area { border: 2px dashed #888; border-radius: 15px; padding: 20px; cursor: pointer; background: #252525; margin-bottom: 20px; }
+        .upload-area { border: 2px dashed #888; border-radius: 15px; padding: 20px; cursor: pointer; background: #252525; margin-bottom: 15px; }
         #preview-img { max-width: 100%; max-height: 250px; border-radius: 10px; margin-top: 10px; display: none; }
-        textarea { width: 90%; height: 70px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 12px; padding: 12px; resize: none; margin-bottom: 20px; font-size: 14px;}
-        .grid-botones { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-        .btn-base { border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; color: white; text-transform: uppercase; font-size: 13px;}
+        textarea { width: 90%; height: 60px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 12px; padding: 12px; resize: none; margin-bottom: 15px; font-size: 14px;}
+        
+        .grid-botones { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+        .btn-base { border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; color: white; text-transform: uppercase; font-size: 12px;}
+        .btn-ini { background: linear-gradient(135deg, #00c6ff, #0072ff); grid-column: span 2; }
         .btn-rom { background: linear-gradient(135deg, #ff69b4, #ff1493); }
         .btn-coq { background: linear-gradient(135deg, #ff9100, #ed8002); }
         .btn-pic { background: linear-gradient(135deg, #ff3d00, #dd2c00); }
         .btn-pro { background: linear-gradient(135deg, #a855f7, #7e22ce); }
-        #res { background: #2a2a2a; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 20px; border-left: 5px solid #00D4FF; min-height: 60px; font-size: 15px; }
+        .btn-salv { background: linear-gradient(135deg, #10b981, #059669); grid-column: span 2; }
+        .btn-limp { background: #444; color: #ccc; margin-top: 10px; width: 100%; padding: 10px; border-radius: 10px; border: none; cursor: pointer; font-size: 12px; }
+        
+        #res { background: #2a2a2a; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 15px; border-left: 5px solid #00D4FF; min-height: 50px; font-size: 14px; }
         .loading { color: #888; font-style: italic; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v6.6</div>
+        <div class="subtitle">Asistente de Conquista v7.0</div>
+        
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
             <input type="file" id="file-input" accept="image/*" onchange="cargarImagen(event)" style="display:none;">
             <img id="preview-img">
         </div>
+        
         <textarea id="texto-adicional" placeholder="Contexto extra (opcional)..."></textarea>
+        
         <div class="grid-botones">
+            <button class="btn-base btn-ini" onclick="generarRespuesta('Iniciar Conversación')">🚀 Iniciar Conversación</button>
             <button class="btn-base btn-rom" onclick="generarRespuesta('Romántico')">💖 Romántico</button>
             <button class="btn-base btn-coq" onclick="generarRespuesta('Coqueto')">😏 Coqueto</button>
             <button class="btn-base btn-pic" onclick="generarRespuesta('Picante')">🔥 Picante</button>
             <button class="btn-base btn-pro" onclick="generarRespuesta('Provocativo')">😈 Provocativo</button>
+            <button class="btn-base btn-salv" onclick="generarRespuesta('Salvar el Momento')">🛟 Salvar el Momento</button>
         </div>
-        <div id="res">Sube una captura y elige un modo.</div>
+        
+        <button class="btn-limp" onclick="limpiarTodo()">🧹 Limpiar Todo</button>
+        
+        <div id="res">Sube una captura o escribe contexto y elige una opción.</div>
     </div>
+
     <script>
         let imagenBase64 = null;
         function cargarImagen(event) {
@@ -69,10 +84,20 @@ HTML_TEMPLATE = """
                 reader.readAsDataURL(file);
             }
         }
+
+        function limpiarTodo() {
+            imagenBase64 = null;
+            document.getElementById('file-input').value = "";
+            document.getElementById('preview-img').style.display = 'none';
+            document.getElementById('upload-text').style.display = 'block';
+            document.getElementById('texto-adicional').value = "";
+            document.getElementById('res').innerText = "Sube una captura o escribe contexto y elige una opción.";
+        }
+
         async function generarRespuesta(modo) {
             const resDiv = document.getElementById('res');
             const textoExtra = document.getElementById('texto-adicional').value;
-            if (!imagenBase64 && !textoExtra.trim()) {
+            if (!imagenBase64 && !textoExtra.trim() && modo !== 'Iniciar Conversación') {
                 resDiv.innerText = "⚠️ Sube una imagen o da contexto.";
                 return;
             }
@@ -103,39 +128,35 @@ def procesar():
         return jsonify({'error': 'GROQ_API_KEY no configurada.'}), 500
     
     data = request.json
-    imagen_b64 = data.get('imagen')
     texto_extra = data.get('texto_extra', '')
     modo = data.get('modo', 'Coqueto')
 
     prompt = f"""
-Escribe EXCLUSIVAMENTE en español latino.
-Analiza la captura de pantalla y genera EXACTAMENTE 3 opciones de respuesta para responder en tono **{modo.upper()}**.
+Eres un experto asistente de citas. Responde EXCLUSIVAMENTE en español latino.
 
-Formato obligatorio de salida:
+Genera EXACTAMENTE 3 opciones de respuesta cortas y listas para copiar en un chat, enfocadas en el objetivo **{modo.upper()}**.
 
-1. "[Opción 1]"
+Formato obligatorio de respuesta:
+
+1. "[Opción de respuesta 1]"
 📌 Por qué funciona: [Explicación corta de 1 sola línea]
 
-2. "[Opción 2]"
+2. "[Opción de respuesta 2]"
 📌 Por qué funciona: [Explicación corta de 1 sola línea]
 
-3. "[Opción 3]"
+3. "[Opción de respuesta 3]"
 📌 Por qué funciona: [Explicación corta de 1 sola línea]
 
-Reglas:
-- No escribas introducciones, ni saludos, ni explicaciones extra en inglés.
+REGLAS:
+- No incluyas intros, saludos ni textos en inglés.
 - Empieza directamente en "1.".
-- Contexto adicional: "{texto_extra}".
+- Contexto aportado por el usuario: "{texto_extra}".
 """
-
-    content = [{"type": "text", "text": prompt}]
-    if imagen_b64:
-        content.append({"type": "image_url", "image_url": {"url": imagen_b64}})
 
     try:
         completion = client.chat.completions.create(
             model=MODELO_GROQ,
-            messages=[{"role": "user", "content": content}],
+            messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=400
         )
