@@ -9,7 +9,7 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # Modelo de visión activo en Groq
-MODELO_GROQ = "llama-3.2-90b-vision-preview"
+MODELO_GROQ = "llama-3.2-11b-vision-preview"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -39,7 +39,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v6.5</div>
+        <div class="subtitle">Asistente de Conquista v6.6</div>
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
             <input type="file" id="file-input" accept="image/*" onchange="cargarImagen(event)" style="display:none;">
@@ -76,7 +76,7 @@ HTML_TEMPLATE = """
                 resDiv.innerText = "⚠️ Sube una imagen o da contexto.";
                 return;
             }
-            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones de respuesta...</span>';
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
@@ -109,22 +109,22 @@ def procesar():
 
     prompt = f"""
 Escribe EXCLUSIVAMENTE en español latino.
-Analiza el chat de la imagen y genera EXACTAMENTE 3 opciones de respuesta en estilo **{modo.upper()}**.
+Analiza la captura de pantalla y genera EXACTAMENTE 3 opciones de respuesta para responder en tono **{modo.upper()}**.
 
-FORMATO OBLIGATORIO DE SALIDA:
+Formato obligatorio de salida:
 
-1. "[Opción de respuesta 1]"
+1. "[Opción 1]"
 📌 Por qué funciona: [Explicación corta de 1 sola línea]
 
-2. "[Opción de respuesta 2]"
-📌 Por me funciona: [Explicación corta de 1 sola línea]
-
-3. "[Opción de respuesta 3]"
+2. "[Opción 2]"
 📌 Por qué funciona: [Explicación corta de 1 sola línea]
 
-REGLAS:
-- No escribas introducciones, ni saludos, ni análisis técnico, ni texto en inglés.
-- Pasa directo a la lista numerada "1.".
+3. "[Opción 3]"
+📌 Por qué funciona: [Explicación corta de 1 sola línea]
+
+Reglas:
+- No escribas introducciones, ni saludos, ni explicaciones extra en inglés.
+- Empieza directamente en "1.".
 - Contexto adicional: "{texto_extra}".
 """
 
@@ -141,7 +141,6 @@ REGLAS:
         )
         respuesta_texto = completion.choices[0].message.content
         
-        # Recorte de seguridad para quitar cualquier texto previo a la lista
         if "1." in respuesta_texto:
             respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
 
