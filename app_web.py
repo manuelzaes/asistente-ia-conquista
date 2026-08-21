@@ -4,12 +4,17 @@ from groq import Groq
 
 app = Flask(__name__)
 
-# Configuración de la API de Groq
+# Configuración del cliente Groq
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Modelo estándar y activo en Groq
-MODELO_GROQ = "llama-3.3-70b-versatile"
+# Lista priorizada de modelos compatibles y activos en la API de Groq
+MODELOS_CANDIDATOS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b"
+]
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -121,10 +126,25 @@ HTML_TEMPLATE = """
 def home():
     return render_template_string(HTML_TEMPLATE)
 
+def obtener_modelo_activo():
+
+    # 1. Intentar consultar dinámicamente la lista de modelos devueltos por la API de Groq
+    try:
+        modelos_disponibles = client.models.list()
+        for m in modelos_disponibles.data:
+            model_id = getattr(m, 'id', '')
+            if any(cand in model_id for cand in MODELOS_CANDIDATOS):
+                return model_id
+    except Exception:
+        pass
+    
+    # 2. Retornar el modelo por defecto si la lista falla
+    return MODELOS_CANDIDATOS[0]
+
 @app.route('/procesar', methods=['POST'])
 def procesar():
     if not client:
-        return jsonify({'error': 'GROQ_API_KEY no configurada.'}), 500
+        return jsonify({'error': 'GROQ_API_KEY no configurada en las variables de entorno.'}), 500
     
     data = request.json
     texto_extra = data.get('texto_extra', '')
@@ -152,21 +172,31 @@ REGLAS:
 - Contexto extra brindado por el usuario: "{texto_extra}".
 """
 
-    try:
-        completion = client.chat.completions.create(
-            model=MODELO_GROQ,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=500
-        )
-        respuesta_texto = completion.choices[0].message.content.strip()
-        
-        if "1." in respuesta_texto:
-            respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
+    # Probar modelos disponibles en orden si el primero retorna error de acceso
+    modelos_a_probar = [obtener_modelo_activo()] + MODELOS_CANDIDATOS
+    # Remover duplicados manteniendo orden
+    modelos_unicos = list(dict.fromkeys(modelos_a_probar))
 
-        return jsonify({'respuesta': respuesta_texto})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    ultimo_error = ""
+    for model_id in modelos_unicos:
+        try:
+            completion = client.chat.completions.create(
+                model=model_id,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=500
+            )
+            respuesta_texto = completion.choices[0].message.content.strip()
+            
+            if "1." in respuesta_texto:
+                respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
+
+            return jsonify({'respuesta': respuesta_texto})
+        except Exception as e:
+            ultimo_error = str(e)
+            continue
+
+    return jsonify({'error': f"Error en API: {ultimo_error}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
