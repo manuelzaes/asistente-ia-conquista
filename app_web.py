@@ -1,5 +1,4 @@
 import os
-import base64
 from flask import Flask, render_template_string, request, jsonify
 from groq import Groq
 
@@ -9,8 +8,8 @@ app = Flask(__name__)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Modelo de texto ultra estable
-MODELO_GROQ = "llama-3.3-70b-versatile"
+# Modelo estándar 100% disponible en la API de Groq
+MODELO_GROQ = "llama-3.1-8b-instant"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -45,7 +44,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v7.0</div>
+        <div class="subtitle">Asistente de Conquista v7.1</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -56,12 +55,12 @@ HTML_TEMPLATE = """
         <textarea id="texto-adicional" placeholder="Contexto extra (opcional)..."></textarea>
         
         <div class="grid-botones">
-            <button class="btn-base btn-ini" onclick="generarRespuesta('Iniciar Conversación')">🚀 Iniciar Conversación</button>
-            <button class="btn-base btn-rom" onclick="generarRespuesta('Romántico')">💖 Romántico</button>
-            <button class="btn-base btn-coq" onclick="generarRespuesta('Coqueto')">😏 Coqueto</button>
-            <button class="btn-base btn-pic" onclick="generarRespuesta('Picante')">🔥 Picante</button>
-            <button class="btn-base btn-pro" onclick="generarRespuesta('Provocativo')">😈 Provocativo</button>
-            <button class="btn-base btn-salv" onclick="generarRespuesta('Salvar el Momento')">🛟 Salvar el Momento</button>
+            <button class="btn-base btn-ini" onclick="generarRespuesta('Iniciar Conversación')">🚀 INICIAR CONVERSACIÓN</button>
+            <button class="btn-base btn-rom" onclick="generarRespuesta('Romántico')">💖 ROMÁNTICO</button>
+            <button class="btn-base btn-coq" onclick="generarRespuesta('Coqueto')">😏 COQUETO</button>
+            <button class="btn-base btn-pic" onclick="generarRespuesta('Picante')">🔥 PICANTE</button>
+            <button class="btn-base btn-pro" onclick="generarRespuesta('Provocativo')">😈 PROVOCATIVO</button>
+            <button class="btn-base btn-salv" onclick="generarRespuesta('Salvar el Momento')">🛟 SALVAR EL MOMENTO</button>
         </div>
         
         <button class="btn-limp" onclick="limpiarTodo()">🧹 Limpiar Todo</button>
@@ -101,7 +100,7 @@ HTML_TEMPLATE = """
                 resDiv.innerText = "⚠️ Sube una imagen o da contexto.";
                 return;
             }
-            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones de respuesta...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas...</span>';
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
@@ -132,23 +131,24 @@ def procesar():
     modo = data.get('modo', 'Coqueto')
 
     prompt = f"""
-Eres un experto asistente de citas. Responde EXCLUSIVAMENTE en español latino.
+Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente de citas.
 
-Genera EXACTAMENTE 3 opciones de respuesta cortas y listas para copiar en un chat, enfocadas en el objetivo **{modo.upper()}**.
+Entrega ÚNICAMENTE Y DIRECTAMENTE las 3 opciones de respuesta en estilo **{modo.upper()}**.
 
-Formato obligatorio de respuesta:
+Formato exacto de salida obligatorio:
 
 1. "[Opción de respuesta 1]"
-📌 Por qué funciona: [Explicación corta de 1 sola línea]
+📌 Por qué funciona: [Explicación de 1 sola línea corta]
 
 2. "[Opción de respuesta 2]"
-📌 Por qué funciona: [Explicación corta de 1 sola línea]
+📌 Por qué funciona: [Explicación de 1 sola línea corta]
 
 3. "[Opción de respuesta 3]"
-📌 Por qué funciona: [Explicación corta de 1 sola línea]
+📌 Por qué funciona: [Explicación de 1 sola línea corta]
 
-REGLAS:
-- No incluyas intros, saludos ni textos en inglés.
+REGLAS ESTRICTAS:
+- NO escribas introducciones, ni saludos, ni análisis previo.
+- NO uses idioma inglés.
 - Empieza directamente en "1.".
 - Contexto aportado por el usuario: "{texto_extra}".
 """
@@ -162,6 +162,7 @@ REGLAS:
         )
         respuesta_texto = completion.choices[0].message.content
         
+        # Recorte de seguridad para quitar cualquier texto sobrante antes del 1.
         if "1." in respuesta_texto:
             respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
 
