@@ -8,8 +8,8 @@ app = Flask(__name__)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Nombre del modelo estándar y activo en Groq
-model="llama-3.1-8b-instant"
+# Definición del modelo (Solución al error 'not defined')
+MODELO_GROQ = "llama-3.1-8b-instant"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -44,7 +44,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v7.2</div>
+        <div class="subtitle">Asistente de Conquista v7.3</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -100,7 +100,7 @@ HTML_TEMPLATE = """
                 resDiv.innerText = "⚠️ Sube una imagen o da contexto.";
                 return;
             }
-            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones de respuesta...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas...</span>';
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
