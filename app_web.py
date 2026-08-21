@@ -111,15 +111,20 @@ def procesar():
     modo = data.get('modo', 'Coqueto')
 
     # Prompt del sistema para guiar a la IA
+    # Prompt del sistema ULTRA ESTRICTO para limpiar la salida
     prompt_sistema = f"""
-Actúa como un experto estratega en citas y carisma. Tu objetivo es analizar la captura de pantalla de un chat proporcionada y generar 3 opciones de respuesta en modo **{modo}**.
+Actúa como un experto estratega en citas y carisma. Analiza la captura de pantalla del chat para entender el contexto y el tono.
 
-INSTRUCCIONES:
-1. Analiza la imagen: identifica el último mensaje recibido, el tono y los emojis.
-2. Usa el contexto extra si existe: "{texto_extra}".
-3. Crea 3 respuestas breves, naturales y efectivas para continuar la conversación.
-4. Usa emojis adecuados para el modo {modo}.
-5. Devuelve SOLO las 3 opciones numeradas, sin texto introductorio.
+Genera ÚNICAMENTE 3 opciones de respuesta en modo **{modo}**, que sean breves, naturales y muy efectivas para continuar la conversación.
+
+⚠️ REGLAS CRÍTICAS DE SALIDA:
+1. NO escribas introducciones ni explicaciones.
+2. NO incluyas "Análisis de imagen", "Estrategia" o "Borrador".
+3. NO añadas notas parentéticas como "(Validación + coquetería leve)".
+4. Entrega SOLO las 3 frases, numeradas del 1 al 3.
+5. Usa emojis adecuados para el modo {modo}.
+
+Usa el contexto extra si existe: "{texto_extra}".
 """
 
     messages = []
