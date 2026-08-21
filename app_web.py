@@ -9,16 +9,17 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 def obtener_modelo_activo():
-    """Consulta directamente a Groq qué modelos están activos para usar el primero disponible."""
+    """Obtiene el nombre exacto (ID) del primer modelo de chat activo disponible en Groq."""
     try:
-        modelos_disponibles = client.models.list()
-        for m in modelos_disponibles.data:
-            # Filtramos solo modelos de texto válidos
-            if "llama" in m.id.lower() or "gemma" in m.id.lower() or "mixtral" in m.id.lower():
-                return m.id
-        return modelos_disponibles.data[0].id
+        modelos = client.models.list()
+        for m in modelos.data:
+            nombre = str(getattr(m, 'id', ''))
+            # Verificar que sea un modelo de texto activo y no un ID/timestamp aleatorio
+            if any(k in nombre.lower() for k in ["llama", "gemma", "mixtral"]):
+                return nombre
+        # Fallback al modelo estándar si no encuentra coincidencia en el bucle
+        return "llama-3.3-70b-versatile"
     except Exception:
-        # Resguardo manual por si falla la consulta dinámica
         return "llama-3.3-70b-versatile"
 
 HTML_TEMPLATE = """
@@ -47,14 +48,14 @@ HTML_TEMPLATE = """
         .btn-salv { background: linear-gradient(135deg, #10b981, #059669); grid-column: span 2; }
         .btn-limp { background: #444; color: #ccc; margin-top: 10px; width: 100%; padding: 10px; border-radius: 10px; border: none; cursor: pointer; font-size: 12px; }
         
-        #res { background: #2a2a2a; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 15px; border-left: 5px solid #00D4FF; min-height: 50px; font-size: 14px; }
+        #res { background: #2a2a2a; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 15px; border-left: 5px solid #00D4FF; min-height: 50px; font-size: 14px; line-height: 1.5; }
         .loading { color: #888; font-style: italic; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v8.2</div>
+        <div class="subtitle">Asistente de Conquista v8.3</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -118,7 +119,7 @@ HTML_TEMPLATE = """
                     body: JSON.stringify({ imagen: imagenBase64, texto_extra: textoExtra, modo: modo })
                 });
                 const data = await response.json();
-                if (data.respuesta) { resDiv.innerHTML = data.respuesta; }
+                if (data.respuesta) { resDiv.innerText = data.respuesta; }
                 else { resDiv.innerText = "❌ Error: " + (data.error || "Desconocido"); }
             } catch (err) { resDiv.innerText = "❌ Error de conexión."; }
         }
@@ -141,26 +142,25 @@ def procesar():
     modo = data.get('modo', 'Coqueto')
 
     prompt = f"""
-Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente de citas.
+Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente de citas y seducción.
 
-Entrega ÚNICAMENTE Y DIRECTAMENTE las 3 opciones de respuesta en estilo **{modo.upper()}**.
+Entrega ÚNICAMENTE 3 opciones de respuesta en estilo **{modo.upper()}**.
 
 Formato obligatorio de salida:
 
 1. "[Opción de respuesta 1]"
-📌 Por qué funciona: [Explicación de 1 sola línea corta]
+📌 Por qué funciona: [Explicación de 1 línea]
 
 2. "[Opción de respuesta 2]"
-📌 Por qué funciona: [Explicación de 1 sola línea corta]
+📌 Por qué funciona: [Explicación de 1 línea]
 
 3. "[Opción de respuesta 3]"
-📌 Por qué funciona: [Explicación de 1 sola línea corta]
+📌 Por qué funciona: [Explicación de 1 línea]
 
-REGLAS ESTRICTAS:
-- NO escribas introducciones, ni saludos, ni análisis previo.
-- NO uses idioma inglés.
-- Empieza directamente en "1.".
-- Contexto aportado por el usuario: "{texto_extra}".
+REGLAS:
+- NO escribas intros, saludos ni análisis previos.
+- Empieza directamente con "1.".
+- Contexto extra brindado por el usuario: "{texto_extra}".
 """
 
     try:
@@ -169,9 +169,9 @@ REGLAS ESTRICTAS:
             model=modelo_activo,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
-            max_tokens=400
+            max_tokens=500
         )
-        respuesta_texto = completion.choices[0].message.content
+        respuesta_texto = completion.choices[0].message.content.strip()
         
         if "1." in respuesta_texto:
             respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
