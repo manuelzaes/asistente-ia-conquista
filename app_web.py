@@ -4,15 +4,12 @@ from groq import Groq
 
 app = Flask(__name__)
 
-# Configuración del cliente Groq
+# Configuración de la API de Groq
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Lista de modelos vigentes y activos en Groq
-MODELOS = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant"
-]
+# Modelo Llama 3.1 oficial para Groq
+MODELO_GROQ = "meta-llama/llama-3.1-8b-instant"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -47,7 +44,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v8.4</div>
+        <div class="subtitle">Asistente de Conquista v5.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -155,26 +152,21 @@ REGLAS:
 - Contexto extra brindado por el usuario: "{texto_extra}".
 """
 
-    ultimo_error = ""
-    for mod in MODELOS:
-        try:
-            completion = client.chat.completions.create(
-                model=mod,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=500
-            )
-            respuesta_texto = completion.choices[0].message.content.strip()
-            
-            if "1." in respuesta_texto:
-                respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
+    try:
+        completion = client.chat.completions.create(
+            model=MODELO_GROQ,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=500
+        )
+        respuesta_texto = completion.choices[0].message.content.strip()
+        
+        if "1." in respuesta_texto:
+            respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
 
-            return jsonify({'respuesta': respuesta_texto})
-        except Exception as e:
-            ultimo_error = str(e)
-            continue
-
-    return jsonify({'error': f"Error en API: {ultimo_error}"}), 500
+        return jsonify({'respuesta': respuesta_texto})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
