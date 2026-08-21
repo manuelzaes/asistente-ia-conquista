@@ -8,8 +8,8 @@ app = Flask(__name__)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Modelo estándar 100% disponible en la API de Groq
-MODELO_GROQ = "llama-3.1-8b-instant"
+# Nombre del modelo estándar y activo en Groq
+MODELO_GROQ = "llama3-8b-8192"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -44,7 +44,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v7.1</div>
+        <div class="subtitle">Asistente de Conquista v7.2</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -100,7 +100,7 @@ HTML_TEMPLATE = """
                 resDiv.innerText = "⚠️ Sube una imagen o da contexto.";
                 return;
             }
-            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones de respuesta...</span>';
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
@@ -135,7 +135,7 @@ Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente de citas.
 
 Entrega ÚNICAMENTE Y DIRECTAMENTE las 3 opciones de respuesta en estilo **{modo.upper()}**.
 
-Formato exacto de salida obligatorio:
+Formato obligatorio de salida:
 
 1. "[Opción de respuesta 1]"
 📌 Por qué funciona: [Explicación de 1 sola línea corta]
@@ -162,7 +162,6 @@ REGLAS ESTRICTAS:
         )
         respuesta_texto = completion.choices[0].message.content
         
-        # Recorte de seguridad para quitar cualquier texto sobrante antes del 1.
         if "1." in respuesta_texto:
             respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
 
