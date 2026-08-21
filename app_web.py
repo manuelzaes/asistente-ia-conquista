@@ -8,8 +8,8 @@ app = Flask(__name__)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Modelo Llama 3.1 oficial para Groq
-MODELO_GROQ = "meta-llama/llama-3.1-8b-instant"
+# Modelo estándar y activo en Groq
+MODELO_GROQ = "llama-3.3-70b-versatile"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
