@@ -8,12 +8,18 @@ app = Flask(__name__)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Modelos activos en Groq
-MODELOS_GROQ = [
-    "llama-3.1-8b-instant",
-    "llama-3.3-70b-versatile",
-    "gemma2-9b-it"
-]
+def obtener_modelo_activo():
+    """Consulta directamente a Groq qué modelos están activos para usar el primero disponible."""
+    try:
+        modelos_disponibles = client.models.list()
+        for m in modelos_disponibles.data:
+            # Filtramos solo modelos de texto válidos
+            if "llama" in m.id.lower() or "gemma" in m.id.lower() or "mixtral" in m.id.lower():
+                return m.id
+        return modelos_disponibles.data[0].id
+    except Exception:
+        # Resguardo manual por si falla la consulta dinámica
+        return "llama-3.3-70b-versatile"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -48,7 +54,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v8.1</div>
+        <div class="subtitle">Asistente de Conquista v8.2</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -145,7 +151,7 @@ Formato obligatorio de salida:
 📌 Por qué funciona: [Explicación de 1 sola línea corta]
 
 2. "[Opción de respuesta 2]"
-📌 Por me funciona: [Explicación de 1 sola línea corta]
+📌 Por qué funciona: [Explicación de 1 sola línea corta]
 
 3. "[Opción de respuesta 3]"
 📌 Por qué funciona: [Explicación de 1 sola línea corta]
@@ -157,27 +163,22 @@ REGLAS ESTRICTAS:
 - Contexto aportado por el usuario: "{texto_extra}".
 """
 
-    ultimo_error = None
+    try:
+        modelo_activo = obtener_modelo_activo()
+        completion = client.chat.completions.create(
+            model=modelo_activo,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=400
+        )
+        respuesta_texto = completion.choices[0].message.content
+        
+        if "1." in respuesta_texto:
+            respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
 
-    for modelo in MODELOS_GROQ:
-        try:
-            completion = client.chat.completions.create(
-                model=modelo,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=400
-            )
-            respuesta_texto = completion.choices[0].message.content
-            
-            if "1." in respuesta_texto:
-                respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
-
-            return jsonify({'respuesta': respuesta_texto})
-        except Exception as e:
-            ultimo_error = str(e)
-            continue
-
-    return jsonify({'error': f"Error en API: {ultimo_error}"}), 500
+        return jsonify({'respuesta': respuesta_texto})
+    except Exception as e:
+        return jsonify({'error': f"Error en API: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
