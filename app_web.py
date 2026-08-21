@@ -111,22 +111,20 @@ def procesar():
     modo = data.get('modo', 'Coqueto')
 
     # Prompt del sistema para guiar a la IA
-    # Prompt del sistema ULTRA ESTRICTO para limpiar la salida
+   # Prompt del sistema ULTRA-RESTRINGIDO para forzar español y limpieza absoluta
     prompt_sistema = f"""
-Actúa como un experto estratega en citas y carisma. Analiza la captura de pantalla del chat para entender el contexto y el tono.
+Actúa como un experto estratega en citas y carisma. Analiza la captura de pantalla para entender el contexto.
 
 Genera ÚNICAMENTE 3 opciones de respuesta en modo **{modo}**, que sean breves, naturales y muy efectivas para continuar la conversación.
 
-⚠️ REGLAS CRÍTICAS DE SALIDA:
-1. NO escribas introducciones ni explicaciones.
-2. NO incluyas "Análisis de imagen", "Estrategia" o "Borrador".
-3. NO añadas notas parentéticas como "(Validación + coquetería leve)".
-4. Entrega SOLO las 3 frases, numeradas del 1 al 3.
-5. Usa emojis adecuados para el modo {modo}.
+⚠️ REGLAS CRÍTICAS DE SALIDA - OBEDIENCIA ABSOLUTA REQUERIDA:
+1. RESPONDE EXCLUSIVAMENTE EN ESPAÑOL.
+2. NO incluyas introducciones, explicaciones, análisis técnico, estrategia o etiquetas como "(Validación + coquetería leve)".
+3. Tu salida debe contener SOLO las 3 frases, numeradas del 1 al 3.
+4. Usa emojis adecuados para el modo {modo}.
 
 Usa el contexto extra si existe: "{texto_extra}".
 """
-
     messages = []
     if imagen_b64:
         messages.append({
