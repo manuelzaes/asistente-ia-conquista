@@ -10,7 +10,7 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # Modelo actualizado y soportado por Groq para visión y texto
-MODELO_GROQ = "llama-3.2-11b-vision-preview"
+MODELO_GROQ = "qwen/qwen3.6-27b"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
