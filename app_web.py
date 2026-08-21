@@ -1,23 +1,15 @@
 import os
-import base64
-import io
 from flask import Flask, render_template_string, request, jsonify
 from groq import Groq
-from PIL import Image
-import pytesseract
 
 app = Flask(__name__)
 
-# Configuración de la API de Groq
+# Configuración de la API de Groq desde variables de entorno
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Lista de modelos de respaldo activos en Groq
-MODELOS = [
-    "llama-3.1-8b-instant",
-    "llama-3.3-70b-versatile",
-    "openai/gpt-oss-20b"
-]
+# Modelo estándar y 100% activo en la API de Groq
+MODELO_GROQ = "llama-3.1-8b-instant"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -60,7 +52,7 @@ HTML_TEMPLATE = """
             <img id="preview-img">
         </div>
         
-        <textarea id="texto-adicional" placeholder="Contexto extra (opcional)..."></textarea>
+        <textarea id="texto-adicional" placeholder="Escribe aquí lo que dijo o el contexto extra..."></textarea>
         
         <div class="grid-botones">
             <button class="btn-base btn-ini" onclick="generarRespuesta('Iniciar Conversación')">🚀 INICIAR CONVERSACIÓN</button>
@@ -73,7 +65,7 @@ HTML_TEMPLATE = """
         
         <button class="btn-limp" onclick="limpiarTodo()">🧹 Limpiar Todo</button>
         
-        <div id="res">Sube una captura o escribe contexto y elige una opción.</div>
+        <div id="res">Escribe el contexto o lo que dijo tu conversación y elige un estilo.</div>
     </div>
 
     <script>
@@ -99,25 +91,25 @@ HTML_TEMPLATE = """
             document.getElementById('preview-img').style.display = 'none';
             document.getElementById('upload-text').style.display = 'block';
             document.getElementById('texto-adicional').value = "";
-            document.getElementById('res').innerText = "Sube una captura o escribe contexto y elige una opción.";
+            document.getElementById('res').innerText = "Escribe el contexto o lo que dijo tu conversación y elige un estilo.";
         }
 
         async function generarRespuesta(modo) {
             const resDiv = document.getElementById('res');
             const textoExtra = document.getElementById('texto-adicional').value;
             
-            if (!imagenBase64 && !textoExtra.trim() && modo !== 'Iniciar Conversación') {
-                resDiv.innerText = "⚠️ Sube una imagen o da contexto.";
+            if (!textoExtra.trim() && modo !== 'Iniciar Conversación') {
+                resDiv.innerText = "⚠️ Por favor escribe algo en el cuadro de texto para analizar.";
                 return;
             }
             
-            resDiv.innerHTML = '<span class="loading">🤔 Procesando y generando opciones...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones de respuesta...</span>';
             
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imagen: imagenBase64, texto_extra: textoExtra, modo: modo })
+                    body: JSON.stringify({ texto_extra: textoExtra, modo: modo })
                 });
                 const data = await response.json();
                 if (data.respuesta) { 
@@ -138,34 +130,17 @@ HTML_TEMPLATE = """
 def home():
     return render_template_string(HTML_TEMPLATE)
 
-def extraer_texto_imagen(base64_str):
-    if not base64_str:
-        return ""
-    try:
-        if "," in base64_str:
-            base64_str = base64_str.split(",")[1]
-        image_data = base64.b64decode(base64_str)
-        img = Image.open(io.BytesIO(image_data))
-        texto = pytesseract.image_to_string(img, lang='spa+eng')
-        return texto.strip()
-    except Exception:
-        return ""
-
 @app.route('/procesar', methods=['POST'])
 def procesar():
     if not client:
-        return jsonify({'error': 'GROQ_API_KEY no configurada.'}), 500
+        return jsonify({'error': 'GROQ_API_KEY no configurada en Render.'}), 500
     
     data = request.json or {}
-    imagen_b64 = data.get('imagen')
     texto_extra = data.get('texto_extra', '')
     modo = data.get('modo', 'Coqueto')
 
-    # Extraer texto del OCR si se envió imagen
-    texto_captura = extraer_texto_imagen(imagen_b64)
-
     prompt = f"""
-Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente de citas.
+Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente de citas y seducción.
 
 Entrega ÚNICAMENTE 3 opciones de respuesta en estilo **{modo.upper()}**.
 
@@ -180,34 +155,27 @@ Formato obligatorio de salida:
 3. "[Opción de respuesta 3]"
 📌 Por qué funciona: [Explicación de 1 línea]
 
-REGLAS:
+REGLAS STRICTAS:
 - NO escribas intros, saludos ni análisis previos.
 - Empieza directamente con "1.".
-- Texto extraído del chat: "{texto_captura}"
-- Contexto adicional: "{texto_extra}"
+- Contexto brindado por el usuario: "{texto_extra}".
 """
 
-    # Probar modelos disponibles en orden de prioridad
-    error_log = []
-    for model_name in MODELOS:
-        try:
-            completion = client.chat.completions.create(
-                model=model_name,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=500
-            )
-            respuesta_texto = completion.choices[0].message.content.strip()
-            
-            if "1." in respuesta_texto:
-                respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
+    try:
+        completion = client.chat.completions.create(
+            model=MODELO_GROQ,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=500
+        )
+        respuesta_texto = completion.choices[0].message.content.strip()
+        
+        if "1." in respuesta_texto:
+            respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
 
-            return jsonify({'respuesta': respuesta_texto})
-        except Exception as e:
-            error_log.append(f"{model_name}: {str(e)}")
-            continue
-
-    return jsonify({'error': f"Fallo en modelos de Groq: {' | '.join(error_log)}"}), 500
+        return jsonify({'respuesta': respuesta_texto})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
