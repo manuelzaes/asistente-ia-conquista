@@ -8,13 +8,11 @@ app = Flask(__name__)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Lista priorizada de modelos activos en Groq (se probarán en orden si uno falla)
+# Modelos activos en Groq
 MODELOS_GROQ = [
     "llama-3.1-8b-instant",
     "llama-3.3-70b-versatile",
-    "llama3-70b-8192",
-    "gemma2-9b-it",
-    "mixtral-8x7b-32768"
+    "gemma2-9b-it"
 ]
 
 HTML_TEMPLATE = """
@@ -50,7 +48,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v8.0</div>
+        <div class="subtitle">Asistente de Conquista v8.1</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -147,7 +145,7 @@ Formato obligatorio de salida:
 📌 Por qué funciona: [Explicación de 1 sola línea corta]
 
 2. "[Opción de respuesta 2]"
-📌 Por qué funciona: [Explicación de 1 sola línea corta]
+📌 Por me funciona: [Explicación de 1 sola línea corta]
 
 3. "[Opción de respuesta 3]"
 📌 Por qué funciona: [Explicación de 1 sola línea corta]
@@ -161,7 +159,6 @@ REGLAS ESTRICTAS:
 
     ultimo_error = None
 
-    # Recorrer la lista de modelos de respaldo hasta que uno funcione
     for modelo in MODELOS_GROQ:
         try:
             completion = client.chat.completions.create(
@@ -180,7 +177,7 @@ REGLAS ESTRICTAS:
             ultimo_error = str(e)
             continue
 
-    return jsonify({'error': f"Ningún modelo respondió con éxito. Último error: {ultimo_error}"}), 500
+    return jsonify({'error': f"Error en API: {ultimo_error}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
