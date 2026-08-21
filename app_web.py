@@ -6,10 +6,9 @@ app = Flask(__name__)
 
 # Configuración del cliente Groq con la API KEY del entorno
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-# Usamos un cliente dummy si no hay API KEY para evitar errores al inicio
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Modelo actualizado y soportado por Groq para visión y texto
+# Modelo de visión soportado por Groq
 MODELO_GROQ = "qwen/qwen3.6-27b"
 
 HTML_TEMPLATE = """
@@ -34,8 +33,6 @@ HTML_TEMPLATE = """
         .btn-pic { background: linear-gradient(135deg, #ff3d00, #dd2c00); }
         .btn-pro { background: linear-gradient(135deg, #a855f7, #7e22ce); }
         #res { background: #2a2a2a; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 20px; border-left: 5px solid #00D4FF; min-height: 60px; font-size: 15px; }
-        
-        /* Efecto de carga */
         .loading { color: #888; font-style: italic; }
     </style>
 </head>
@@ -110,21 +107,29 @@ def procesar():
     texto_extra = data.get('texto_extra', '')
     modo = data.get('modo', 'Coqueto')
 
-    # Prompt del sistema para guiar a la IA
-   # Prompt del sistema ULTRA-RESTRINGIDO para forzar español y limpieza absoluta
     prompt_sistema = f"""
-Actúa como un experto estratega en citas y carisma. Analiza la captura de pantalla para entender el contexto.
+Escribe OBLIGATORIAMENTE Y ÚNICAMENTE EN ESPAÑOL.
+Eres un experto en citas. Analiza la imagen enviada.
 
-Genera ÚNICAMENTE 3 opciones de respuesta en modo **{modo}**, que sean breves, naturales y muy efectivas para continuar la conversación.
+Tu tarea es entregar exactamente 3 opciones de respuesta en estilo **{modo}**.
 
-⚠️ REGLAS CRÍTICAS DE SALIDA - OBEDIENCIA ABSOLUTA REQUERIDA:
-1. RESPONDE EXCLUSIVAMENTE EN ESPAÑOL.
-2. NO incluyas introducciones, explicaciones, análisis técnico, estrategia o etiquetas como "(Validación + coquetería leve)".
-3. Tu salida debe contener SOLO las 3 frases, numeradas del 1 al 3.
-4. Usa emojis adecuados para el modo {modo}.
+Formato REQUERIDO de salida (sin preámbulos, sin inglés, sin razonamiento previo):
 
-Usa el contexto extra si existe: "{texto_extra}".
+1. "[Respuesta para enviar]"
+📌 Por qué funciona: [Explicación de 1 sola línea corta]
+
+2. "[Respuesta para enviar]"
+📌 Por qué funciona: [Explicación de 1 sola línea corta]
+
+3. "[Respuesta para enviar]"
+📌 Por qué funciona: [Explicación de 1 sola línea corta]
+
+REGLAS STRICTAS:
+- CERO inglés. Todo en ESPAÑOL.
+- CERO borradores o análisis internos.
+- Usa contexto extra si lo hay: "{texto_extra}".
 """
+
     messages = []
     if imagen_b64:
         messages.append({
@@ -137,17 +142,22 @@ Usa el contexto extra si existe: "{texto_extra}".
     else:
         messages.append({
             "role": "user",
-            "content": f"{prompt_sistema}\nContexto: {texto_extra}"
+            "content": prompt_sistema
         })
 
     try:
         completion = client.chat.completions.create(
             model=MODELO_GROQ,
             messages=messages,
-            temperature=0.7,
-            max_tokens=500
+            temperature=0.6,
+            max_tokens=600
         )
         respuesta_texto = completion.choices[0].message.content
+        
+        # Filtrar si el modelo imprime etiquetas <think>...</think> de razonamiento interno
+        if "<think>" in respuesta_texto and "</think>" in respuesta_texto:
+            respuesta_texto = respuesta_texto.split("</think>")[-1].strip()
+
         return jsonify({'respuesta': respuesta_texto})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
