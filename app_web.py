@@ -1,12 +1,26 @@
 import os
-from flask import Flask, render_template_string
+import threading
+import time
+import requests
+from flask import Flask, render_template_string, request, jsonify
 
 app = Flask(__name__)
 
-# Intenta obtener la API Key de las variables de Render
-GROQ_KEY = os.environ.get("GROQ_API_KEY", "")
+# Coloca aquí tu clave real de Groq para que la app sea de acceso directo
+GROQ_API_KEY = "TU_API_KEY_AQUI"
 
-HTML_TEMPLATE = f"""
+# Tarea en segundo plano para evitar que Render entre en suspensión
+def keep_alive():
+    while True:
+        time.sleep(600)  # Cada 10 minutos hace un ping
+        try:
+            requests.get("https://asistente-ia-conquista.onrender.com/")
+        except Exception:
+            pass
+
+threading.Thread(target=keep_alive, daemon=True).start()
+
+HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -15,36 +29,33 @@ HTML_TEMPLATE = f"""
     <title>Spark IA - Tu Asistente de Conquista</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body {{ background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; margin: 0; }}
-        .container {{ max-width: 500px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 20px; }}
-        h2 {{ color: #bb86fc; margin-bottom: 5px; }}
-        .subtitle {{ color: #888; font-size: 14px; margin-bottom: 20px; }}
-        .upload-area {{ border: 2px dashed #888; border-radius: 15px; padding: 20px; cursor: pointer; background: #252525; margin-bottom: 15px; }}
-        #preview-img {{ max-width: 100%; max-height: 250px; border-radius: 10px; margin-top: 10px; display: none; }}
-        textarea, input[type="password"] {{ width: 90%; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 12px; padding: 12px; resize: none; margin-bottom: 15px; font-size: 14px; }}
-        textarea {{ height: 60px; }}
+        body { background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; margin: 0; }
+        .container { max-width: 500px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 20px; }
+        h2 { color: #bb86fc; margin-bottom: 5px; }
+        .subtitle { color: #888; font-size: 14px; margin-bottom: 20px; }
+        .upload-area { border: 2px dashed #888; border-radius: 15px; padding: 20px; cursor: pointer; background: #252525; margin-bottom: 15px; }
+        #preview-img { max-width: 100%; max-height: 250px; border-radius: 10px; margin-top: 10px; display: none; }
+        textarea { width: 90%; height: 60px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 12px; padding: 12px; resize: none; margin-bottom: 15px; font-size: 14px;}
         
-        .grid-botones {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }}
-        .btn-base {{ border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; color: white; text-transform: uppercase; font-size: 12px; }}
-        .btn-ini {{ background: linear-gradient(135deg, #00c6ff, #0072ff); grid-column: span 2; }}
-        .btn-rom {{ background: linear-gradient(135deg, #ff69b4, #ff1493); }}
-        .btn-coq {{ background: linear-gradient(135deg, #ff9100, #ed8002); }}
-        .btn-pic {{ background: linear-gradient(135deg, #ff3d00, #dd2c00); }}
-        .btn-pro {{ background: linear-gradient(135deg, #a855f7, #7e22ce); }}
-        .btn-salv {{ background: linear-gradient(135deg, #10b981, #059669); grid-column: span 2; }}
-        .btn-limp {{ background: #444; color: #ccc; margin-top: 10px; width: 100%; padding: 10px; border-radius: 10px; border: none; cursor: pointer; font-size: 12px; }}
+        .grid-botones { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+        .btn-base { border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; color: white; text-transform: uppercase; font-size: 12px;}
+        .btn-ini { background: linear-gradient(135deg, #00c6ff, #0072ff); grid-column: span 2; }
+        .btn-rom { background: linear-gradient(135deg, #ff69b4, #ff1493); }
+        .btn-coq { background: linear-gradient(135deg, #ff9100, #ed8002); }
+        .btn-pic { background: linear-gradient(135deg, #ff3d00, #dd2c00); }
+        .btn-pro { background: linear-gradient(135deg, #a855f7, #7e22ce); }
+        .btn-salv { background: linear-gradient(135deg, #10b981, #059669); grid-column: span 2; }
+        .btn-limp { background: #444; color: #ccc; margin-top: 10px; width: 100%; padding: 10px; border-radius: 10px; border: none; cursor: pointer; font-size: 12px; }
         
-        #res {{ background: #2a2a2a; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 15px; border-left: 5px solid #00D4FF; min-height: 50px; font-size: 14px; line-height: 1.5; }}
-        .loading {{ color: #888; font-style: italic; }}
-        #status-ocr {{ font-size: 12px; color: #00c6ff; margin-top: 5px; display: none; }}
+        #res { background: #2a2a2a; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 15px; border-left: 5px solid #00D4FF; min-height: 50px; font-size: 14px; line-height: 1.5; }
+        .loading { color: #888; font-style: italic; }
+        #status-ocr { font-size: 12px; color: #00c6ff; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
         <div class="subtitle">Asistente de Conquista v5.0</div>
-        
-        <input type="password" id="api-key-input" placeholder="Pega tu Groq API Key aquí (gsk_...)" value="{GROQ_KEY}">
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -73,11 +84,11 @@ HTML_TEMPLATE = f"""
         let imagenBase64 = null;
         let textoExtraidoOCR = "";
 
-        async function cargarImagen(event) {{
+        async function cargarImagen(event) {
             const file = event.target.files[0];
-            if (file) {{
+            if (file) {
                 const reader = new FileReader();
-                reader.onload = async function(e) {{
+                reader.onload = async function(e) {
                     imagenBase64 = e.target.result;
                     document.getElementById('preview-img').src = imagenBase64;
                     document.getElementById('preview-img').style.display = 'block';
@@ -85,21 +96,21 @@ HTML_TEMPLATE = f"""
                     
                     const status = document.getElementById('status-ocr');
                     status.style.display = 'block';
-                    status.innerText = "🔍 Leyendo texto de la captura...";
+                    status.innerText = "🔍 Procesando texto de la captura...";
                     
-                    try {{
+                    try {
                         const result = await Tesseract.recognize(imagenBase64, 'spa');
                         textoExtraidoOCR = result.data.text.trim();
-                        status.innerText = "✅ Captura procesada con éxito";
-                    }} catch (err) {{
-                        status.innerText = "⚠️ Ingrese texto manualmente abajo.";
-                    }}
-                }};
+                        status.innerText = "✅ Captura leída correctamente";
+                    } catch (err) {
+                        status.innerText = "⚠️ Ingrese el contexto en el cuadro de texto.";
+                    }
+                };
                 reader.readAsDataURL(file);
-            }}
-        }}
+            }
+        }
 
-        function limpiarTodo() {{
+        function limpiarTodo() {
             imagenBase64 = null;
             textoExtraidoOCR = "";
             document.getElementById('file-input').value = "";
@@ -108,30 +119,55 @@ HTML_TEMPLATE = f"""
             document.getElementById('status-ocr').style.display = 'none';
             document.getElementById('texto-adicional').value = "";
             document.getElementById('res').innerText = "Sube una captura o escribe contexto y elige un estilo.";
-        }}
+        }
 
-        async function generarRespuesta(modo) {{
+        async function generarRespuesta(modo) {
             const resDiv = document.getElementById('res');
-            const apiKey = document.getElementById('api-key-input').value.trim();
             const textoManual = document.getElementById('texto-adicional').value;
-            
-            if (!apiKey) {{
-                resDiv.innerText = "⚠️ Ingresa tu API Key de Groq (gsk_...) en la casilla superior.";
-                return;
-            }}
-            
             const contextoFinal = (textoExtraidoOCR + "\\n" + textoManual).trim();
             
-            if (!contextoFinal && modo !== 'Iniciar Conversación') {{
+            if (!contextoFinal && modo !== 'Iniciar Conversación') {
                 resDiv.innerText = "⚠️ Suba una captura o escriba el mensaje en el cuadro de texto.";
                 return;
-            }}
+            }
             
-            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones de respuesta...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas...</span>';
             
-            const prompt = `Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
+            try {
+                const response = await fetch('/procesar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contexto: contextoFinal, modo: modo })
+                });
+                const data = await response.json();
+                if (data.respuesta) { 
+                    resDiv.innerText = data.respuesta; 
+                } else { 
+                    resDiv.innerText = "❌ Error: " + (data.error || "Desconocido"); 
+                }
+            } catch (err) { 
+                resDiv.innerText = "❌ Error de conexión con el servidor."; 
+            }
+        }
+    </script>
+</body>
+</html>
+"""
 
-Genera ÚNICAMENTE 3 opciones de respuesta cortas y directas en tono **${{modo.toUpperCase()}}**.
+@app.route('/')
+def home():
+    return render_template_string(HTML_TEMPLATE)
+
+@app.route('/procesar', methods=['POST'])
+def procesar():
+    data = request.json or {}
+    contexto = data.get('contexto', '')
+    modo = data.get('modo', 'Coqueto')
+
+    prompt = f"""
+Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
+
+Genera ÚNICAMENTE 3 opciones de respuesta cortas y directas en tono **{modo.upper()}**.
 
 Formato estricto:
 1. "Opción 1"
@@ -141,51 +177,34 @@ Formato estricto:
 REGLAS:
 - Cero intros, cero saludos, cero explicaciones.
 - Empieza directamente con "1.".
-- Contexto brindado: "${{contextoFinal}}"`;
-
-            const modelos = ["llama-3.3-70b-versatile", "llama3-8b-8192", "mixtral-8x7b-32768"];
-            let respuestaExitosa = false;
-
-            for (let model of modelos) {{
-                try {{
-                    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {{
-                        method: "POST",
-                        headers: {{
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${{apiKey}}`
-                        }},
-                        body: JSON.stringify({{
-                            model: model,
-                            messages: [{{ role: "user", content: prompt }}],
-                            temperature: 0.7,
-                            max_tokens: 250
-                        }})
-                    }});
-
-                    const data = await response.json();
-
-                    if (response.ok && data.choices && data.choices[0]) {{
-                        resDiv.innerText = data.choices[0].message.content.trim();
-                        respuestaExitosa = true;
-                        break;
-                    }}
-                }} catch (err) {{
-                    continue;
-                }}
-            }}
-
-            if (!respuestaExitosa) {{
-                resDiv.innerText = "❌ Error: API Key no válida o sin cuota disponible. Verifica tu clave en console.groq.com.";
-            }}
-        }}
-    </script>
-</body>
-</html>
+- Contexto brindado: "{contexto}"
 """
 
-@app.route('/')
-def home():
-    return render_template_string(HTML_TEMPLATE)
+    modelos = ["llama-3.3-70b-versatile", "llama3-8b-8192", "mixtral-8x7b-32768"]
+    
+    for model in modelos:
+        try:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {GROQ_API_KEY}"
+                },
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7,
+                    "max_tokens": 250
+                },
+                timeout=10
+            )
+            res_json = resp.json()
+            if resp.status_code == 200 and "choices" in res_json:
+                return jsonify({'respuesta': res_json["choices"][0]["message"]["content"].strip()})
+        except Exception:
+            continue
+
+    return jsonify({'error': 'No se pudo conectar con el servicio de respuestas. Revisa que la API Key en el código sea válida.'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
