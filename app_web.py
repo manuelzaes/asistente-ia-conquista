@@ -6,13 +6,13 @@ from flask import Flask, render_template_string, request, jsonify
 
 app = Flask(__name__)
 
-# Coloca aquí tu clave real de Groq para que la app sea de acceso directo
-GROQ_API_KEY = "TU_API_KEY_AQUI"
+# PEGA TU API KEY REAL DE GROQ AQUÍ DENTRO DE LAS COMILLAS
+GROQ_API_KEY = "PEGA_AQUI_TU_API_KEY_REAL_GSK"
 
-# Tarea en segundo plano para evitar que Render entre en suspensión
+# Script Keep-Alive para evitar que Render entre en reposo
 def keep_alive():
     while True:
-        time.sleep(600)  # Cada 10 minutos hace un ping
+        time.sleep(600)
         try:
             requests.get("https://asistente-ia-conquista.onrender.com/")
         except Exception:
@@ -96,14 +96,14 @@ HTML_TEMPLATE = """
                     
                     const status = document.getElementById('status-ocr');
                     status.style.display = 'block';
-                    status.innerText = "🔍 Procesando texto de la captura...";
+                    status.innerText = "🔍 Procesando texto...";
                     
                     try {
                         const result = await Tesseract.recognize(imagenBase64, 'spa');
                         textoExtraidoOCR = result.data.text.trim();
                         status.innerText = "✅ Captura leída correctamente";
                     } catch (err) {
-                        status.innerText = "⚠️ Ingrese el contexto en el cuadro de texto.";
+                        status.innerText = "⚠️ Ingrese el contexto abajo.";
                     }
                 };
                 reader.readAsDataURL(file);
@@ -164,6 +164,12 @@ def procesar():
     contexto = data.get('contexto', '')
     modo = data.get('modo', 'Coqueto')
 
+    # Si la clave no fue reemplazada en la línea 9, intenta leer del sistema
+    key_actual = GROQ_API_KEY if GROQ_API_KEY != "PEGA_AQUI_TU_API_KEY_REAL_GSK" else os.environ.get("GROQ_API_KEY", "")
+
+    if not key_actual:
+        return jsonify({'error': 'La API Key de Groq no se ha configurado en la línea 9 de app_web.py.'}), 500
+
     prompt = f"""
 Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
 
@@ -188,7 +194,7 @@ REGLAS:
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {GROQ_API_KEY}"
+                    "Authorization": f"Bearer {key_actual}"
                 },
                 json={
                     "model": model,
@@ -196,7 +202,7 @@ REGLAS:
                     "temperature": 0.7,
                     "max_tokens": 250
                 },
-                timeout=10
+                timeout=12
             )
             res_json = resp.json()
             if resp.status_code == 200 and "choices" in res_json:
@@ -204,7 +210,7 @@ REGLAS:
         except Exception:
             continue
 
-    return jsonify({'error': 'No se pudo conectar con el servicio de respuestas. Revisa que la API Key en el código sea válida.'}), 500
+    return jsonify({'error': 'Error de autenticación con Groq. Verifica que tu API Key sea válida.'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
