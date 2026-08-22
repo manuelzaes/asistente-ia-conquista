@@ -21,8 +21,8 @@ threading.Thread(target=keep_alive, daemon=True).start()
 
 def limpiar_pensamiento_ia(texto):
     """
-    Elimina bloques de razonamiento interno (<think>...</think>)
-    y asegura que el resultado empiece directo en '1.'.
+    Elimina razonamiento interno de DeepSeek/Llama (<think>...</think>)
+    y fuerza la respuesta desde el punto '1.'.
     """
     texto_limpio = re.sub(r'<think>.*?</think>', '', texto, flags=re.DOTALL)
     
@@ -67,7 +67,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v5.3</div>
+        <div class="subtitle">Asistente de Conquista v5.4</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -192,19 +192,23 @@ FORMATO OBLIGATORIO DE SALIDA:
 3. "Opción 3"
 
 REGLAS STRICTAS:
-- NO escribas intros, saludos, ni notas en inglés.
+- NO escribas intros, saludos, pensamientos ni notas en inglés.
 - Empieza directamente en el número 1.
 
 Contexto del chat:
 {contexto}
 """
 
-    modelos_a_probar = [
+    modelos_oficiales = [
         "llama-3.3-70b-versatile",
-        "openai/gpt-oss-20b"
+        "llama-3.1-8b-instant",
+        "llama3-70b-8192",
+        "llama3-8b-8192"
     ]
 
-    for mod in modelos_a_probar:
+    ultimo_error = ""
+
+    for mod in modelos_oficiales:
         try:
             resp = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
@@ -218,17 +222,20 @@ Contexto del chat:
                     "temperature": 0.7,
                     "max_tokens": 250
                 },
-                timeout=15
+                timeout=12
             )
             res_json = resp.json()
             if resp.status_code == 200 and "choices" in res_json:
                 raw_text = res_json["choices"][0]["message"]["content"]
                 texto_final = limpiar_pensamiento_ia(raw_text)
                 return jsonify({'respuesta': texto_final})
-        except Exception:
+            else:
+                ultimo_error = res_json.get("error", {}).get("message", resp.text)
+        except Exception as e:
+            ultimo_error = str(e)
             continue
 
-    return jsonify({'error': 'No se pudo conectar con los modelos de Groq activos.'}), 500
+    return jsonify({'error': f"Groq rechazo la conexión: {ultimo_error}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
