@@ -174,17 +174,8 @@ def procesar():
         "Authorization": f"Bearer {key_actual}"
     }
 
-    # Intentar obtener los modelos activos directamente desde la API
+    # Modelos confirmados hoy como activos para cuentas gratuitas
     modelos_a_probar = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"]
-    try:
-        models_resp = requests.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=5)
-        if models_resp.status_code == 200:
-            data_models = models_resp.json().get("data", [])
-            activos = [m["id"] for m in data_models if "llama" in m["id"] or "instant" in m["id"]]
-            if activos:
-                modelos_a_probar = activos + modelos_a_probar
-    except Exception:
-        pass
 
     prompt = f"""
 Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
@@ -214,7 +205,7 @@ REGLAS:
                     "temperature": 0.7,
                     "max_tokens": 250
                 },
-                timeout=12
+                timeout=15
             )
             res_json = resp.json()
             if resp.status_code == 200 and "choices" in res_json:
