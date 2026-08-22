@@ -169,6 +169,23 @@ def procesar():
     if not key_actual:
         return jsonify({'error': 'La variable GROQ_API_KEY no se encontró en Render. Revisa la sección Environment.'}), 500
 
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {key_actual}"
+    }
+
+    # Intentar obtener los modelos activos directamente desde la API
+    modelos_a_probar = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"]
+    try:
+        models_resp = requests.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=5)
+        if models_resp.status_code == 200:
+            data_models = models_resp.json().get("data", [])
+            activos = [m["id"] for m in data_models if "llama" in m["id"] or "instant" in m["id"]]
+            if activos:
+                modelos_a_probar = activos + modelos_a_probar
+    except Exception:
+        pass
+
     prompt = f"""
 Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
 
@@ -185,18 +202,12 @@ REGLAS:
 - Contexto brindado: "{contexto}"
 """
 
-    # Lista de modelos activos actuales en la API de Groq
-    modelos_activos = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "gemma2-9b-it"]
     ultimo_error = ""
-
-    for mod in modelos_activos:
+    for mod in modelos_a_probar:
         try:
             resp = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {key_actual}"
-                },
+                headers=headers,
                 json={
                     "model": mod,
                     "messages": [{"role": "user", "content": prompt}],
