@@ -7,8 +7,6 @@ from flask import Flask, render_template_string, request, jsonify
 
 app = Flask(__name__)
 
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
-
 def keep_alive():
     while True:
         time.sleep(600)
@@ -19,17 +17,36 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
+def obtener_modelo_activo(api_key):
+    """
+    Consulta la API de Groq dinámicamente para obtener el primer modelo 
+    de texto activo y evitar fallos por modelos retirados.
+    """
+    try:
+        url = "https://api.groq.com/openai/v1/models"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            models_data = response.json().get("data", [])
+            for m in models_data:
+                m_id = m.get("id", "")
+                if "llama" in m_id and "whisper" not in m_id and "vision" not in m_id:
+                    return m_id
+            if models_data:
+                return models_data[0]["id"]
+    except Exception:
+        pass
+    return "llama-3.3-70b-versatile"
+
 def limpiar_pensamiento_ia(texto):
     """
-    Elimina razonamiento interno de DeepSeek/Llama (<think>...</think>)
-    y fuerza la respuesta desde el punto '1.'.
+    Elimina razonamiento interno (<think>...</think>) 
+    y asegura que el texto empiece desde el punto '1.'.
     """
     texto_limpio = re.sub(r'<think>.*?</think>', '', texto, flags=re.DOTALL)
-    
     pos_uno = texto_limpio.find("1.")
     if pos_uno != -1:
         texto_limpio = texto_limpio[pos_uno:]
-        
     return texto_limpio.strip()
 
 HTML_TEMPLATE = """
@@ -67,7 +84,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v5.4</div>
+        <div class="subtitle">Asistente de Conquista v6.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -181,6 +198,8 @@ def procesar():
     if not key_actual:
         return jsonify({'error': 'Falta la variable GROQ_API_KEY en Render.'}), 500
 
+    modelo_elegido = obtener_modelo_activo(key_actual)
+
     prompt = f"""Tu trabajo es responder UNICAMENTE en ESPAÑOL LATINO.
 Modo de respuesta: {modo.upper()}
 
@@ -199,43 +218,31 @@ Contexto del chat:
 {contexto}
 """
 
-    modelos_oficiales = [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
-        "llama3-70b-8192",
-        "llama3-8b-8192"
-    ]
-
-    ultimo_error = ""
-
-    for mod in modelos_oficiales:
-        try:
-            resp = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {key_actual}"
-                },
-                json={
-                    "model": mod,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.7,
-                    "max_tokens": 250
-                },
-                timeout=12
-            )
-            res_json = resp.json()
-            if resp.status_code == 200 and "choices" in res_json:
-                raw_text = res_json["choices"][0]["message"]["content"]
-                texto_final = limpiar_pensamiento_ia(raw_text)
-                return jsonify({'respuesta': texto_final})
-            else:
-                ultimo_error = res_json.get("error", {}).get("message", resp.text)
-        except Exception as e:
-            ultimo_error = str(e)
-            continue
-
-    return jsonify({'error': f"Groq rechazo la conexión: {ultimo_error}"}), 500
+    try:
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {key_actual}"
+            },
+            json={
+                "model": modelo_elegido,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+                "max_tokens": 250
+            },
+            timeout=15
+        )
+        res_json = resp.json()
+        if resp.status_code == 200 and "choices" in res_json:
+            raw_text = res_json["choices"][0]["message"]["content"]
+            texto_final = limpiar_pensamiento_ia(raw_text)
+            return jsonify({'respuesta': texto_final})
+        else:
+            msg_error = res_json.get("error", {}).get("message", "Error en Groq")
+            return jsonify({'error': f"Groq ({modelo_elegido}): {msg_error}"}), 500
+    except Exception as e:
+        return jsonify({'error': f"Excepción al conectar: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
