@@ -1,16 +1,14 @@
 import os
+import base64
 from flask import Flask, render_template_string, request, jsonify
-from groq import Groq
+from google import genai
+from google.genai import types
 
 app = Flask(__name__)
 
-# Configuración de la API de Groq
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-
-# Modelos oficiales activos en Groq
-MODELO_VISION = "llama-3.2-11b-vision-preview"
-MODELO_TEXTO = "llama-3.3-70b-versatile"
+# Configuración de la API de Gemini
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GROQ_API_KEY")
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -104,7 +102,7 @@ HTML_TEMPLATE = """
                 return;
             }
             
-            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones directas...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Analizando captura y preparando opciones...</span>';
             
             try {
                 const response = await fetch('/procesar', {
@@ -134,64 +132,57 @@ def home():
 @app.route('/procesar', methods=['POST'])
 def procesar():
     if not client:
-        return jsonify({'error': 'GROQ_API_KEY no configurada en Render.'}), 500
+        return jsonify({'error': 'GEMINI_API_KEY no configurada en las Variables de Entorno de Render.'}), 500
     
     data = request.json or {}
     imagen_b64 = data.get('imagen')
     texto_extra = data.get('texto_extra', '')
     modo = data.get('modo', 'Coqueto')
 
-    prompt_instrucciones = f"""
-Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente de citas.
+    prompt = f"""
+Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
 
-Analiza el mensaje/captura proporcionado y genera ÚNICAMENTE 3 opciones de respuesta en estilo **{modo.upper()}**.
+Analiza el contenido del chat o la imagen adjunta y genera ÚNICAMENTE 3 opciones de respuesta cortas y directas en tono **{modo.upper()}**.
 
 Formato estricto de respuesta:
 1. "Opción 1"
 2. "Opción 2"
 3. "Opción 3"
 
-REGLAS STRICTAS:
-- NO escribas introducciones, saludos ni explicaciones de ningún tipo.
-- Comienza directamente con la opción 1.
-- Contexto adicional brindado: "{texto_extra}"
+REGLAS:
+- Cero intros, cero explicaciones, cero saludos.
+- Muestra únicamente las 3 opciones numeradas del 1 al 3.
+- Contexto adicional: "{texto_extra}"
 """
 
-    # Intento 1: Procesar con el modelo de Visión si hay imagen
+    contents = []
+
+    # Si hay imagen, la procesamos
     if imagen_b64:
         try:
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt_instrucciones},
-                        {"type": "image_url", "image_url": {"url": imagen_b64}}
-                    ]
-                }
-            ]
-            completion = client.chat.completions.create(
-                model=MODELO_VISION,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=300
+            header, encoded = imagen_b64.split(",", 1)
+            mime_type = header.split(";")[0].split(":")[1]
+            image_bytes = base64.b64decode(encoded)
+            
+            contents.append(
+                types.Part.from_bytes(
+                    data=image_bytes,
+                    mime_type=mime_type,
+                )
             )
-            return jsonify({'respuesta': completion.choices[0].message.content.strip()})
-        except Exception as e_vision:
-            # Fallback si falla la visión
-            pass
+        except Exception as e:
+            return jsonify({'error': f"Error al procesar la imagen: {str(e)}"}), 400
 
-    # Intento 2: Procesar únicamente texto
+    contents.append(prompt)
+
     try:
-        messages = [{"role": "user", "content": prompt_instrucciones}]
-        completion = client.chat.completions.create(
-            model=MODELO_TEXTO,
-            messages=messages,
-            temperature=0.7,
-            max_tokens=300
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=contents,
         )
-        return jsonify({'respuesta': completion.choices[0].message.content.strip()})
-    except Exception as e_texto:
-        return jsonify({'error': f"Error al consultar la API de Groq: {str(e_texto)}"}), 500
+        return jsonify({'respuesta': response.text.strip()})
+    except Exception as e:
+        return jsonify({'error': f"Error en la API de Gemini: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
