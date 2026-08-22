@@ -4,12 +4,13 @@ from groq import Groq
 
 app = Flask(__name__)
 
-# Configuración de la API de Groq desde variables de entorno
+# Configuración de la API de Groq
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Modelo estándar y 100% activo en la API de Groq
-MODELO_GROQ = "llama-3.1-8b-instant"
+# Modelos compatibles con la API de Groq (Visión y Texto)
+MODELOS_VISION = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
+MODELOS_TEXTO = ["llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"]
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -65,7 +66,7 @@ HTML_TEMPLATE = """
         
         <button class="btn-limp" onclick="limpiarTodo()">🧹 Limpiar Todo</button>
         
-        <div id="res">Escribe el contexto o lo que dijo tu conversación y elige un estilo.</div>
+        <div id="res">Sube una captura o escribe contexto y elige un estilo.</div>
     </div>
 
     <script>
@@ -91,25 +92,25 @@ HTML_TEMPLATE = """
             document.getElementById('preview-img').style.display = 'none';
             document.getElementById('upload-text').style.display = 'block';
             document.getElementById('texto-adicional').value = "";
-            document.getElementById('res').innerText = "Escribe el contexto o lo que dijo tu conversación y elige un estilo.";
+            document.getElementById('res').innerText = "Sube una captura o escribe contexto y elige un estilo.";
         }
 
         async function generarRespuesta(modo) {
             const resDiv = document.getElementById('res');
             const textoExtra = document.getElementById('texto-adicional').value;
             
-            if (!textoExtra.trim() && modo !== 'Iniciar Conversación') {
-                resDiv.innerText = "⚠️ Por favor escribe algo en el cuadro de texto para analizar.";
+            if (!imagenBase64 && !textoExtra.trim() && modo !== 'Iniciar Conversación') {
+                resDiv.innerText = "⚠️ Por favor sube una imagen o escribe algo en el cuadro de texto.";
                 return;
             }
             
-            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones de respuesta...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Analizando y creando opciones directas...</span>';
             
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ texto_extra: textoExtra, modo: modo })
+                    body: JSON.stringify({ imagen: imagenBase64, texto_extra: textoExtra, modo: modo })
                 });
                 const data = await response.json();
                 if (data.respuesta) { 
@@ -136,46 +137,60 @@ def procesar():
         return jsonify({'error': 'GROQ_API_KEY no configurada en Render.'}), 500
     
     data = request.json or {}
+    imagen_b64 = data.get('imagen')
     texto_extra = data.get('texto_extra', '')
     modo = data.get('modo', 'Coqueto')
 
-    prompt = f"""
-Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente de citas y seducción.
+    prompt_texto = f"""
+Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
 
-Entrega ÚNICAMENTE 3 opciones de respuesta en estilo **{modo.upper()}**.
+Genera ÚNICAMENTE 3 opciones de respuesta cortas y directas para responder al chat, en tono **{modo.upper()}**.
 
-Formato obligatorio de salida:
+Formato estricto de salida:
+1. "Opción 1"
+2. "Opción 2"
+3. "Opción 3"
 
-1. "[Opción de respuesta 1]"
-📌 Por qué funciona: [Explicación de 1 línea]
-
-2. "[Opción de respuesta 2]"
-📌 Por qué funciona: [Explicación de 1 línea]
-
-3. "[Opción de respuesta 3]"
-📌 Por qué funciona: [Explicación de 1 línea]
-
-REGLAS STRICTAS:
-- NO escribas intros, saludos ni análisis previos.
-- Empieza directamente con "1.".
-- Contexto brindado por el usuario: "{texto_extra}".
+REGLAS:
+- No saludes, no expliques nada, no des intros.
+- Entrega SOLAMENTE las 3 opciones numeradas del 1 al 3.
+- Contexto brindado por el usuario: "{texto_extra}"
 """
 
-    try:
-        completion = client.chat.completions.create(
-            model=MODELO_GROQ,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=500
-        )
-        respuesta_texto = completion.choices[0].message.content.strip()
+    # Si hay imagen enviada, intentamos usar los modelos de Visión
+    if imagen_b64:
+        content = [
+            {"type": "text", "text": prompt_texto},
+            {"type": "image_url", "image_url": {"url": imagen_b64}}
+        ]
         
-        if "1." in respuesta_texto:
-            respuesta_texto = "1." + respuesta_texto.split("1.", 1)[1]
+        for m_vis in MODELOS_VISION:
+            try:
+                completion = client.chat.completions.create(
+                    model=m_vis,
+                    messages=[{"role": "user", "content": content}],
+                    temperature=0.7,
+                    max_tokens=300
+                )
+                return jsonify({'respuesta': completion.choices[0].message.content.strip()})
+            except Exception:
+                continue
 
-        return jsonify({'respuesta': respuesta_texto})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    # Fallback/Proceso solo para Texto o si la visión falla
+    content_texto = prompt_texto
+    for m_tex in MODELOS_TEXTO:
+        try:
+            completion = client.chat.completions.create(
+                model=m_tex,
+                messages=[{"role": "user", "content": content_texto}],
+                temperature=0.7,
+                max_tokens=300
+            )
+            return jsonify({'respuesta': completion.choices[0].message.content.strip()})
+        except Exception:
+            continue
+
+    return jsonify({'error': 'No se pudo conectar con ningún modelo activo de Groq. Revisa tu GROQ_API_KEY en Render.'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
