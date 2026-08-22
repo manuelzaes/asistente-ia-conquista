@@ -6,10 +6,10 @@ from flask import Flask, render_template_string, request, jsonify
 
 app = Flask(__name__)
 
-# Lee la API Key cargada en Render
+# Se obtiene la clave de forma segura desde las variables de Render
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
 
-# Script Keep-Alive para mantener Render activo
+# Script Keep-Alive para evitar que Render se dormite
 def keep_alive():
     while True:
         time.sleep(600)
@@ -167,7 +167,7 @@ def procesar():
     key_actual = os.environ.get("GROQ_API_KEY", "").strip()
 
     if not key_actual:
-        return jsonify({'error': 'Falta la variable GROQ_API_KEY en Render.'}), 500
+        return jsonify({'error': 'La variable GROQ_API_KEY no se encontró en Render. Revisa la sección Environment.'}), 500
 
     prompt = f"""
 Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
@@ -185,10 +185,10 @@ REGLAS:
 - Contexto brindado: "{contexto}"
 """
 
-    # Modelos estándar universales en orden de prueba
-    modelos_disponibles = ["llama-3.1-8b-instant", "llama3-8b-8192", "mixtral-8x7b-32768"]
-    
-    for mod in modelos_disponibles:
+    modelos_validos = ["llama-3.1-8b-instant", "llama3-8b-8192"]
+    ultimo_error = ""
+
+    for mod in modelos_validos:
         try:
             resp = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
@@ -207,10 +207,12 @@ REGLAS:
             res_json = resp.json()
             if resp.status_code == 200 and "choices" in res_json:
                 return jsonify({'respuesta': res_json["choices"][0]["message"]["content"].strip()})
-        except Exception:
-            continue
+            else:
+                ultimo_error = res_json.get("error", {}).get("message", resp.text)
+        except Exception as e:
+            ultimo_error = str(e)
 
-    return jsonify({'error': 'No se pudo conectar con los modelos de Groq. Revisa la clave en Render.'}), 400
+    return jsonify({'error': f"Groq rechazó la solicitud. Detalle: {ultimo_error}"}), 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
