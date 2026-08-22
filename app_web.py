@@ -6,10 +6,10 @@ from flask import Flask, render_template_string, request, jsonify
 
 app = Flask(__name__)
 
-# Intenta obtener la API Key desde Render
+# Lee la API Key cargada en Render
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
 
-# Script Keep-Alive para evitar que Render se duerma
+# Script Keep-Alive para mantener Render activo
 def keep_alive():
     while True:
         time.sleep(600)
@@ -167,7 +167,7 @@ def procesar():
     key_actual = os.environ.get("GROQ_API_KEY", "").strip()
 
     if not key_actual:
-        return jsonify({'error': 'La variable GROQ_API_KEY no fue detectada por Render. Reinicia el servidor en Render.'}), 500
+        return jsonify({'error': 'Falta la variable GROQ_API_KEY en Render.'}), 500
 
     prompt = f"""
 Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
@@ -185,31 +185,32 @@ REGLAS:
 - Contexto brindado: "{contexto}"
 """
 
-    try:
-        resp = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {key_actual}"
-            },
-            json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.7,
-                "max_tokens": 250
-            },
-            timeout=15
-        )
-        res_json = resp.json()
-        
-        if resp.status_code == 200 and "choices" in res_json:
-            return jsonify({'respuesta': res_json["choices"][0]["message"]["content"].strip()})
-        else:
-            detalles = res_json.get("error", {}).get("message", resp.text)
-            return jsonify({'error': f"Groq rehusó la clave. Detalle: {detalles}"}), 400
+    # Modelos estándar universales en orden de prueba
+    modelos_disponibles = ["llama-3.1-8b-instant", "llama3-8b-8192", "mixtral-8x7b-32768"]
+    
+    for mod in modelos_disponibles:
+        try:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {key_actual}"
+                },
+                json={
+                    "model": mod,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7,
+                    "max_tokens": 250
+                },
+                timeout=12
+            )
+            res_json = resp.json()
+            if resp.status_code == 200 and "choices" in res_json:
+                return jsonify({'respuesta': res_json["choices"][0]["message"]["content"].strip()})
+        except Exception:
+            continue
 
-    except Exception as e:
-        return jsonify({'error': f"Error de red/servidor: {str(e)}"}), 500
+    return jsonify({'error': 'No se pudo conectar con los modelos de Groq. Revisa la clave en Render.'}), 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
