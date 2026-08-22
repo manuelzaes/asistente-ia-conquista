@@ -21,44 +21,16 @@ threading.Thread(target=keep_alive, daemon=True).start()
 
 def limpiar_pensamiento_ia(texto):
     """
-    Elimina bloques de razonamiento interno como <think>...</think>
-    y cualquier texto residual antes de la primera opción.
+    Elimina bloques de razonamiento interno (<think>...</think>)
+    y asegura que el resultado empiece directo en '1.'.
     """
     texto_limpio = re.sub(r'<think>.*?</think>', '', texto, flags=re.DOTALL)
     
-    # Si queda texto intro en inglés, busca donde empieza "1."
     pos_uno = texto_limpio.find("1.")
     if pos_uno != -1:
         texto_limpio = texto_limpio[pos_uno:]
         
     return texto_limpio.strip()
-
-def obtener_modelo_valido(key):
-    """
-    Filtra estrictamente modelos de texto oficiales de Llama.
-    """
-    modelos_permitidos = [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
-        "llama3-70b-8192",
-        "llama3-8b-8192"
-    ]
-    try:
-        resp = requests.get(
-            "https://api.groq.com/openai/v1/models",
-            headers={"Authorization": f"Bearer {key}"},
-            timeout=5
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            disponibles = [m.get("id") for m in data.get("data", []) if m.get("id")]
-            for m in modelos_permitidos:
-                if m in disponibles:
-                    return m
-    except Exception:
-        pass
-    
-    return "llama-3.1-8b-instant"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -95,7 +67,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v5.2</div>
+        <div class="subtitle">Asistente de Conquista v5.3</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -209,8 +181,6 @@ def procesar():
     if not key_actual:
         return jsonify({'error': 'Falta la variable GROQ_API_KEY en Render.'}), 500
 
-    modelo_a_usar = obtener_modelo_valido(key_actual)
-
     prompt = f"""Tu trabajo es responder UNICAMENTE en ESPAÑOL LATINO.
 Modo de respuesta: {modo.upper()}
 
@@ -229,31 +199,36 @@ Contexto del chat:
 {contexto}
 """
 
-    try:
-        resp = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {key_actual}"
-            },
-            json={
-                "model": modelo_a_usar,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.7,
-                "max_tokens": 250
-            },
-            timeout=15
-        )
-        res_json = resp.json()
-        if resp.status_code == 200 and "choices" in res_json:
-            raw_text = res_json["choices"][0]["message"]["content"]
-            texto_final = limpiar_pensamiento_ia(raw_text)
-            return jsonify({'respuesta': texto_final})
-        else:
-            det = res_json.get("error", {}).get("message", resp.text)
-            return jsonify({'error': f"Error en API Groq: {det}"}), 400
-    except Exception as e:
-        return jsonify({'error': f"Error en el servidor: {str(e)}"}), 500
+    modelos_a_probar = [
+        "llama-3.3-70b-versatile",
+        "openai/gpt-oss-20b"
+    ]
+
+    for mod in modelos_a_probar:
+        try:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {key_actual}"
+                },
+                json={
+                    "model": mod,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7,
+                    "max_tokens": 250
+                },
+                timeout=15
+            )
+            res_json = resp.json()
+            if resp.status_code == 200 and "choices" in res_json:
+                raw_text = res_json["choices"][0]["message"]["content"]
+                texto_final = limpiar_pensamiento_ia(raw_text)
+                return jsonify({'respuesta': texto_final})
+        except Exception:
+            continue
+
+    return jsonify({'error': 'No se pudo conectar con los modelos de Groq activos.'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
