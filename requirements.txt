@@ -1,5 +1,5 @@
 flask
-google-genai
+groq
 gunicorn
 requests
 apscheduler
