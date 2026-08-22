@@ -169,14 +169,6 @@ def procesar():
     if not key_actual:
         return jsonify({'error': 'La variable GROQ_API_KEY no se encontró en Render. Revisa la sección Environment.'}), 500
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {key_actual}"
-    }
-
-    # Modelos confirmados hoy como activos para cuentas gratuitas
-    modelos_a_probar = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"]
-
     prompt = f"""
 Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
 
@@ -193,29 +185,29 @@ REGLAS:
 - Contexto brindado: "{contexto}"
 """
 
-    ultimo_error = ""
-    for mod in modelos_a_probar:
-        try:
-            resp = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers=headers,
-                json={
-                    "model": mod,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.7,
-                    "max_tokens": 250
-                },
-                timeout=15
-            )
-            res_json = resp.json()
-            if resp.status_code == 200 and "choices" in res_json:
-                return jsonify({'respuesta': res_json["choices"][0]["message"]["content"].strip()})
-            else:
-                ultimo_error = res_json.get("error", {}).get("message", resp.text)
-        except Exception as e:
-            ultimo_error = str(e)
-
-    return jsonify({'error': f"Groq rechazó la solicitud. Detalle: {ultimo_error}"}), 400
+    try:
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {key_actual}"
+            },
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+                "max_tokens": 250
+            },
+            timeout=15
+        )
+        res_json = resp.json()
+        if resp.status_code == 200 and "choices" in res_json:
+            return jsonify({'respuesta': res_json["choices"][0]["message"]["content"].strip()})
+        else:
+            det = res_json.get("error", {}).get("message", resp.text)
+            return jsonify({'error': f"Groq rechazó la solicitud. Detalle: {det}"}), 400
+    except Exception as e:
+        return jsonify({'error': f"Error en el servidor: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
