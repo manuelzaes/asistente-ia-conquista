@@ -1,4 +1,5 @@
 import os
+import re
 import threading
 import time
 import requests
@@ -6,10 +7,8 @@ from flask import Flask, render_template_string, request, jsonify
 
 app = Flask(__name__)
 
-# Se obtiene la clave de forma segura desde las variables de Render
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
 
-# Script Keep-Alive para evitar que Render se dormite
 def keep_alive():
     while True:
         time.sleep(600)
@@ -20,11 +19,30 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
-def obtener_modelo_activo(key):
+def limpiar_pensamiento_ia(texto):
     """
-    Consulta dinámicamente a Groq para ver qué modelos están disponibles
-    para esta API Key en particular.
+    Elimina bloques de razonamiento interno como <think>...</think>
+    y cualquier texto residual antes de la primera opción.
     """
+    texto_limpio = re.sub(r'<think>.*?</think>', '', texto, flags=re.DOTALL)
+    
+    # Si queda texto intro en inglés, busca donde empieza "1."
+    pos_uno = texto_limpio.find("1.")
+    if pos_uno != -1:
+        texto_limpio = texto_limpio[pos_uno:]
+        
+    return texto_limpio.strip()
+
+def obtener_modelo_valido(key):
+    """
+    Filtra estrictamente modelos de texto oficiales de Llama.
+    """
+    modelos_permitidos = [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "llama3-70b-8192",
+        "llama3-8b-8192"
+    ]
     try:
         resp = requests.get(
             "https://api.groq.com/openai/v1/models",
@@ -33,29 +51,13 @@ def obtener_modelo_activo(key):
         )
         if resp.status_code == 200:
             data = resp.json()
-            modelos_disponibles = [m.get("id") for m in data.get("data", []) if m.get("id")]
-            
-            # Orden de preferencia si están disponibles
-            preferencias = [
-                "llama-3.3-70b-versatile",
-                "llama-3.1-8b-instant",
-                "llama3-70b-8192",
-                "llama3-8b-8192",
-                "mixtral-8x7b-32768"
-            ]
-            
-            for pref in preferencias:
-                if pref in modelos_disponibles:
-                    return pref
-            
-            # Si no coincide con las preferencias, usar el primer modelo disponible que no sea whisper
-            for m_id in modelos_disponibles:
-                if "whisper" not in m_id.lower() and "guard" not in m_id.lower():
-                    return m_id
-    except Exception as e:
-        print(f"Error consultando modelos: {e}")
+            disponibles = [m.get("id") for m in data.get("data", []) if m.get("id")]
+            for m in modelos_permitidos:
+                if m in disponibles:
+                    return m
+    except Exception:
+        pass
     
-    # Fallback por defecto si no responde la lista
     return "llama-3.1-8b-instant"
 
 HTML_TEMPLATE = """
@@ -93,7 +95,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v5.1</div>
+        <div class="subtitle">Asistente de Conquista v5.2</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -205,25 +207,26 @@ def procesar():
     key_actual = os.environ.get("GROQ_API_KEY", "").strip()
 
     if not key_actual:
-        return jsonify({'error': 'La variable GROQ_API_KEY no se encontró en Render. Revisa la sección Environment.'}), 500
+        return jsonify({'error': 'Falta la variable GROQ_API_KEY en Render.'}), 500
 
-    # Detección automática del modelo activo en la cuenta de Groq
-    modelo_a_usar = obtener_modelo_activo(key_actual)
+    modelo_a_usar = obtener_modelo_valido(key_actual)
 
-    prompt = f"""
-Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
+    prompt = f"""Tu trabajo es responder UNICAMENTE en ESPAÑOL LATINO.
+Modo de respuesta: {modo.upper()}
 
-Genera ÚNICAMENTE 3 opciones de respuesta cortas y directas en tono **{modo.upper()}**.
+Genera 3 opciones de respuesta cortas, directas e idóneas para WhatsApp.
 
-Formato estricto:
+FORMATO OBLIGATORIO DE SALIDA:
 1. "Opción 1"
 2. "Opción 2"
 3. "Opción 3"
 
-REGLAS:
-- Cero intros, cero saludos, cero explicaciones.
-- Empieza directamente con "1.".
-- Contexto brindado: "{contexto}"
+REGLAS STRICTAS:
+- NO escribas intros, saludos, ni notas en inglés.
+- Empieza directamente en el número 1.
+
+Contexto del chat:
+{contexto}
 """
 
     try:
@@ -243,10 +246,12 @@ REGLAS:
         )
         res_json = resp.json()
         if resp.status_code == 200 and "choices" in res_json:
-            return jsonify({'respuesta': res_json["choices"][0]["message"]["content"].strip()})
+            raw_text = res_json["choices"][0]["message"]["content"]
+            texto_final = limpiar_pensamiento_ia(raw_text)
+            return jsonify({'respuesta': texto_final})
         else:
             det = res_json.get("error", {}).get("message", resp.text)
-            return jsonify({'error': f"Groq rechazó la solicitud (Modelo usado: {modelo_a_usar}). Detalle: {det}"}), 400
+            return jsonify({'error': f"Error en API Groq: {det}"}), 400
     except Exception as e:
         return jsonify({'error': f"Error en el servidor: {str(e)}"}), 500
 
