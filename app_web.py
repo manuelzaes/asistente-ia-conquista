@@ -20,6 +20,44 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
+def obtener_modelo_activo(key):
+    """
+    Consulta dinámicamente a Groq para ver qué modelos están disponibles
+    para esta API Key en particular.
+    """
+    try:
+        resp = requests.get(
+            "https://api.groq.com/openai/v1/models",
+            headers={"Authorization": f"Bearer {key}"},
+            timeout=5
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            modelos_disponibles = [m.get("id") for m in data.get("data", []) if m.get("id")]
+            
+            # Orden de preferencia si están disponibles
+            preferencias = [
+                "llama-3.3-70b-versatile",
+                "llama-3.1-8b-instant",
+                "llama3-70b-8192",
+                "llama3-8b-8192",
+                "mixtral-8x7b-32768"
+            ]
+            
+            for pref in preferencias:
+                if pref in modelos_disponibles:
+                    return pref
+            
+            # Si no coincide con las preferencias, usar el primer modelo disponible que no sea whisper
+            for m_id in modelos_disponibles:
+                if "whisper" not in m_id.lower() and "guard" not in m_id.lower():
+                    return m_id
+    except Exception as e:
+        print(f"Error consultando modelos: {e}")
+    
+    # Fallback por defecto si no responde la lista
+    return "llama-3.1-8b-instant"
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="es">
@@ -55,7 +93,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v5.0</div>
+        <div class="subtitle">Asistente de Conquista v5.1</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -169,6 +207,9 @@ def procesar():
     if not key_actual:
         return jsonify({'error': 'La variable GROQ_API_KEY no se encontró en Render. Revisa la sección Environment.'}), 500
 
+    # Detección automática del modelo activo en la cuenta de Groq
+    modelo_a_usar = obtener_modelo_activo(key_actual)
+
     prompt = f"""
 Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
 
@@ -193,7 +234,7 @@ REGLAS:
                 "Authorization": f"Bearer {key_actual}"
             },
             json={
-                "model": "llama-3.1-8b-instant",
+                "model": modelo_a_usar,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.7,
                 "max_tokens": 250
@@ -205,7 +246,7 @@ REGLAS:
             return jsonify({'respuesta': res_json["choices"][0]["message"]["content"].strip()})
         else:
             det = res_json.get("error", {}).get("message", resp.text)
-            return jsonify({'error': f"Groq rechazó la solicitud. Detalle: {det}"}), 400
+            return jsonify({'error': f"Groq rechazó la solicitud (Modelo usado: {modelo_a_usar}). Detalle: {det}"}), 400
     except Exception as e:
         return jsonify({'error': f"Error en el servidor: {str(e)}"}), 500
 
