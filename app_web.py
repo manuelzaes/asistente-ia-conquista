@@ -1,14 +1,16 @@
 import os
 import base64
 from flask import Flask, render_template_string, request, jsonify
-from google import genai
-from google.genai import types
+from groq import Groq
 
 app = Flask(__name__)
 
-# Configuración de la API de Gemini
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GROQ_API_KEY")
-client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+# Configuración de la API de Groq usando tu GROQ_API_KEY
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY") or os.environ.get("GEMINI_API_KEY")
+client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+
+# Modelo de Groq garantizado y activo
+MODELO_GROQ = "llama-3.1-8b-instant"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -97,18 +99,18 @@ HTML_TEMPLATE = """
             const resDiv = document.getElementById('res');
             const textoExtra = document.getElementById('texto-adicional').value;
             
-            if (!imagenBase64 && !textoExtra.trim() && modo !== 'Iniciar Conversación') {
-                resDiv.innerText = "⚠️ Por favor sube una imagen o escribe algo en el cuadro de texto.";
+            if (!textoExtra.trim() && modo !== 'Iniciar Conversación') {
+                resDiv.innerText = "⚠️ Escribe el mensaje del chat o contexto en el cuadro de texto para analizar.";
                 return;
             }
             
-            resDiv.innerHTML = '<span class="loading">🤔 Analizando captura y preparando opciones...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones de respuesta directas...</span>';
             
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imagen: imagenBase64, texto_extra: textoExtra, modo: modo })
+                    body: JSON.stringify({ texto_extra: textoExtra, modo: modo })
                 });
                 const data = await response.json();
                 if (data.respuesta) { 
@@ -132,17 +134,16 @@ def home():
 @app.route('/procesar', methods=['POST'])
 def procesar():
     if not client:
-        return jsonify({'error': 'GEMINI_API_KEY no configurada en las Variables de Entorno de Render.'}), 500
+        return jsonify({'error': 'GROQ_API_KEY no configurada en las Variables de Entorno de Render.'}), 500
     
     data = request.json or {}
-    imagen_b64 = data.get('imagen')
     texto_extra = data.get('texto_extra', '')
     modo = data.get('modo', 'Coqueto')
 
     prompt = f"""
-Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
+Escribe EXCLUSIVAMENTE en español latino. Eres un experto asistente en seducción y citas.
 
-Analiza el contenido del chat o la imagen adjunta y genera ÚNICAMENTE 3 opciones de respuesta cortas y directas en tono **{modo.upper()}**.
+Genera ÚNICAMENTE 3 opciones de respuesta cortas y directas en tono **{modo.upper()}** para responder al mensaje proporcionado.
 
 Formato estricto de respuesta:
 1. "Opción 1"
@@ -150,39 +151,21 @@ Formato estricto de respuesta:
 3. "Opción 3"
 
 REGLAS:
-- Cero intros, cero explicaciones, cero saludos.
-- Muestra únicamente las 3 opciones numeradas del 1 al 3.
-- Contexto adicional: "{texto_extra}"
+- Cero intros, cero saludos, cero comentarios explicativos.
+- Comienza directamente con "1.".
+- Contexto brindado: "{texto_extra}"
 """
 
-    contents = []
-
-    # Si hay imagen, la procesamos
-    if imagen_b64:
-        try:
-            header, encoded = imagen_b64.split(",", 1)
-            mime_type = header.split(";")[0].split(":")[1]
-            image_bytes = base64.b64decode(encoded)
-            
-            contents.append(
-                types.Part.from_bytes(
-                    data=image_bytes,
-                    mime_type=mime_type,
-                )
-            )
-        except Exception as e:
-            return jsonify({'error': f"Error al procesar la imagen: {str(e)}"}), 400
-
-    contents.append(prompt)
-
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=contents,
+        completion = client.chat.completions.create(
+            model=MODELO_GROQ,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=250
         )
-        return jsonify({'respuesta': response.text.strip()})
+        return jsonify({'respuesta': completion.choices[0].message.content.strip()})
     except Exception as e:
-        return jsonify({'error': f"Error en la API de Gemini: {str(e)}"}), 500
+        return jsonify({'error': f"Error en la API de Groq: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
