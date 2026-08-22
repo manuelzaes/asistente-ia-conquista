@@ -1,16 +1,27 @@
 import os
+import base64
 from flask import Flask, render_template_string, request, jsonify
 from groq import Groq
 
 app = Flask(__name__)
 
-# Configuración de la API de Groq
+# Intentar recuperar la API Key de las variables de entorno
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY") or os.environ.get("GEMINI_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Modelos oficiales activos
-MODELO_VISION = "llama-3.2-11b-vision-preview"
-MODELO_TEXTO = "llama-3.1-8b-instant"
+# Lista de modelos de Groq a probar automáticamente
+MODELOS_VISUALES = [
+    "llama-3.2-11b-vision-preview",
+    "llama-3.2-90b-vision-preview"
+]
+
+MODELOS_TEXTO = [
+    "llama-3.3-70b-versatile",
+    "llama3-70b-8192",
+    "llama3-8b-8192",
+    "mixtral-8x7b-32768",
+    "gemma2-9b-it"
+]
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -19,6 +30,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spark IA - Tu Asistente de Conquista</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         body { background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; margin: 0; }
         .container { max-width: 500px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 20px; }
@@ -40,6 +52,7 @@ HTML_TEMPLATE = """
         
         #res { background: #2a2a2a; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 15px; border-left: 5px solid #00D4FF; min-height: 50px; font-size: 14px; line-height: 1.5; }
         .loading { color: #888; font-style: italic; }
+        #status-ocr { font-size: 12px; color: #00c6ff; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
@@ -51,6 +64,7 @@ HTML_TEMPLATE = """
             <span id="upload-text">📸 Subir captura del chat</span>
             <input type="file" id="file-input" accept="image/*" onchange="cargarImagen(event)" style="display:none;">
             <img id="preview-img">
+            <div id="status-ocr">🔍 Leyendo imagen...</div>
         </div>
         
         <textarea id="texto-adicional" placeholder="Escribe aquí lo que dijo o el contexto extra..."></textarea>
@@ -71,16 +85,29 @@ HTML_TEMPLATE = """
 
     <script>
         let imagenBase64 = null;
+        let textoExtraidoOCR = "";
 
-        function cargarImagen(event) {
+        async function cargarImagen(event) {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = async function(e) {
                     imagenBase64 = e.target.result;
                     document.getElementById('preview-img').src = imagenBase64;
                     document.getElementById('preview-img').style.display = 'block';
                     document.getElementById('upload-text').style.display = 'none';
+                    
+                    const status = document.getElementById('status-ocr');
+                    status.style.display = 'block';
+                    status.innerText = "🔍 Extrayendo texto de la captura...";
+                    
+                    try {
+                        const result = await Tesseract.recognize(imagenBase64, 'spa');
+                        textoExtraidoOCR = result.data.text.trim();
+                        status.innerText = "✅ Captura procesada con éxito";
+                    } catch (err) {
+                        status.innerText = "⚠️ Texto listo mediante visión de IA";
+                    }
                 };
                 reader.readAsDataURL(file);
             }
@@ -88,29 +115,36 @@ HTML_TEMPLATE = """
 
         function limpiarTodo() {
             imagenBase64 = null;
+            textoExtraidoOCR = "";
             document.getElementById('file-input').value = "";
             document.getElementById('preview-img').style.display = 'none';
             document.getElementById('upload-text').style.display = 'block';
+            document.getElementById('status-ocr').style.display = 'none';
             document.getElementById('texto-adicional').value = "";
             document.getElementById('res').innerText = "Sube una captura o escribe contexto y elige un estilo.";
         }
 
         async function generarRespuesta(modo) {
             const resDiv = document.getElementById('res');
-            const textoExtra = document.getElementById('texto-adicional').value;
+            const textoManual = document.getElementById('texto-adicional').value;
             
-            if (!imagenBase64 && !textoExtra.trim() && modo !== 'Iniciar Conversación') {
-                resDiv.innerText = "⚠️ Por favor sube una imagen o escribe algo en el cuadro de texto.";
+            if (!imagenBase64 && !textoManual.trim() && modo !== 'Iniciar Conversación') {
+                resDiv.innerText = "⚠️ Sube una imagen o escribe algo en el cuadro de texto.";
                 return;
             }
             
-            resDiv.innerHTML = '<span class="loading">🤔 Analizando la conversación y generando respuestas...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Procesando la mejor respuesta...</span>';
             
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imagen: imagenBase64, texto_extra: textoExtra, modo: modo })
+                    body: JSON.stringify({ 
+                        imagen: imagenBase64, 
+                        texto_ocr: textoExtraidoOCR,
+                        texto_extra: textoManual, 
+                        modo: modo 
+                    })
                 });
                 const data = await response.json();
                 if (data.respuesta) { 
@@ -138,13 +172,16 @@ def procesar():
     
     data = request.json or {}
     imagen_b64 = data.get('imagen')
+    texto_ocr = data.get('texto_ocr', '')
     texto_extra = data.get('texto_extra', '')
     modo = data.get('modo', 'Coqueto')
+
+    contexto_final = f"{texto_ocr}\n{texto_extra}".strip()
 
     prompt = f"""
 Escribe EXCLUSIVAMENTE en español latino. Eres un experto en seducción y citas.
 
-Analiza el contenido del chat recibido en la imagen o texto y genera ÚNICAMENTE 3 opciones de respuesta cortas y directas en tono **{modo.upper()}**.
+Analiza el siguiente contexto de chat y genera ÚNICAMENTE 3 opciones de respuesta cortas y directas en tono **{modo.upper()}**.
 
 Formato estricto de respuesta:
 1. "Opción 1"
@@ -153,43 +190,44 @@ Formato estricto de respuesta:
 
 REGLAS:
 - Cero intros, cero saludos, cero explicaciones.
-- Empieza directamente con "1.".
-- Contexto adicional: "{texto_extra}"
+- Comienza directamente con "1.".
+- Contexto disponible: "{contexto_final}"
 """
 
-    # Procesar con Visión si hay una imagen cargada
+    # 1. Intentar con modelos de visión si hay imagen
     if imagen_b64:
+        for modelo_v in MODELOS_VISUALES:
+            try:
+                completion = client.chat.completions.create(
+                    model=modelo_v,
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": imagen_b64}}
+                        ]
+                    }],
+                    temperature=0.7,
+                    max_tokens=250
+                )
+                return jsonify({'respuesta': completion.choices[0].message.content.strip()})
+            except Exception:
+                continue
+
+    # 2. Si falla o no hay imagen, probar en orden todos los modelos de texto disponibles
+    for modelo_t in MODELOS_TEXTO:
         try:
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": imagen_b64}}
-                    ]
-                }
-            ]
             completion = client.chat.completions.create(
-                model=MODELO_VISION,
-                messages=messages,
+                model=modelo_t,
+                messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
-                max_tokens=300
+                max_tokens=250
             )
             return jsonify({'respuesta': completion.choices[0].message.content.strip()})
-        except Exception as e_vision:
-            pass
+        except Exception:
+            continue
 
-    # Fallback a texto si no hay imagen o si el modelo de visión falla
-    try:
-        completion = client.chat.completions.create(
-            model=MODELO_TEXTO,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=300
-        )
-        return jsonify({'respuesta': completion.choices[0].message.content.strip()})
-    except Exception as e:
-        return jsonify({'error': f"Error en Groq: {str(e)}"}), 500
+    return jsonify({'error': 'No se pudo conectar con ningún modelo activo de Groq. Verifica tu API Key.'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
