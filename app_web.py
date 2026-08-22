@@ -185,10 +185,11 @@ REGLAS:
 - Contexto brindado: "{contexto}"
 """
 
-    modelos_validos = ["llama-3.1-8b-instant", "llama3-8b-8192"]
+    # Lista de modelos activos actuales en la API de Groq
+    modelos_activos = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "gemma2-9b-it"]
     ultimo_error = ""
 
-    for mod in modelos_validos:
+    for mod in modelos_activos:
         try:
             resp = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
