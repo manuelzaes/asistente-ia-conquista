@@ -18,15 +18,11 @@ def keep_alive():
 threading.Thread(target=keep_alive, daemon=True).start()
 
 def obtener_modelo_chat_activo(api_key):
-    """
-    Selecciona un modelo oficial de conversación estable en Groq.
-    """
     modelos_preferidos = [
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
         "qwen-2.5-32b"
     ]
-    
     try:
         url = "https://api.groq.com/openai/v1/models"
         headers = {"Authorization": f"Bearer {api_key}"}
@@ -49,31 +45,35 @@ def obtener_modelo_chat_activo(api_key):
 
 def procesar_respuesta_ia(texto_raw):
     """
-    Filtra pensamientos, análisis en inglés y extrae únicamente las 3 opciones sugeridas.
+    Elimina cualquier análisis en inglés, encabezados técnicos y extrae
+    exclusivamente las sugerencias de respuesta en español.
     """
-    # 1. Eliminar etiquetas de pensamiento <think>...</think>
+    # 1. Eliminar bloques de pensamiento <think>...</think>
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
     
-    # 2. Buscar líneas que empiecen por número (1., 2., 3., 1-, 1), etc.)
+    # 2. Filtrar líneas que contengan texto técnico en inglés
     lineas = texto.split('\n')
-    opciones = []
+    lineas_filtradas = []
     
-    for linea in lineas:
-        linea_str = linea.strip()
-        # Si la línea empieza con un número seguido de punto, guion o paréntesis (ej. 1., 1-, 1))
-        if re.match(r'^\d+[\.\-\)]', linea_str):
-            # Limpiar marcas de negrita Markdown (**)
-            linea_limpia = re.sub(r'\*\*', '', linea_str)
-            opciones.append(linea_limpia)
-            
-    if len(opciones) >= 3:
-        return "\n\n".join(opciones[:3])
-    elif len(opciones) > 0:
-        return "\n\n".join(opciones)
+    palabras_basura = ["analyze", "user input", "identify", "constraints", "language:", "style:", "first message", "second message"]
+    
+    for l in lineas:
+        linea_str = l.strip()
+        if not linea_str:
+            continue
+        # Descartar si coincide con encabezados técnicos
+        if any(p in linea_str.lower() for p in palabras_basura):
+            continue
         
-    # Si no detectó patrón numerado, limpiar negritas y retornar el texto sin bloques de análisis
-    texto_limpio = re.sub(r'\*\*', '', texto).strip()
-    return texto_limpio
+        # Limpiar marcas de formato Markdown como asteriscos o comillas externas
+        linea_limpia = re.sub(r'\*\*', '', linea_str)
+        lineas_filtradas.append(linea_limpia)
+
+    # 3. Formatear y retornar el resultado limpio
+    if lineas_filtradas:
+        return "\n\n".join(lineas_filtradas)
+    
+    return "No se pudieron generar las respuestas. Intenta de nuevo."
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -110,7 +110,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v6.4</div>
+        <div class="subtitle">Asistente de Conquista v6.5</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -179,7 +179,7 @@ HTML_TEMPLATE = """
         async function generarRespuesta(modo) {
             const resDiv = document.getElementById('res');
             const textoManual = document.getElementById('texto-adicional').value;
-            const contextoFinal = (textoExtraidoOCR + "\\n" + textoManual).trim();
+            const contextoFinal = (textoExtraidoOCR + "\n" + textoManual).trim();
             
             if (!contextoFinal && modo !== 'Iniciar Conversación') {
                 resDiv.innerText = "⚠️ Suba una captura o escriba el mensaje en el cuadro de texto.";
@@ -226,21 +226,11 @@ def procesar():
 
     modelo_elegido = obtener_modelo_chat_activo(key_actual)
 
-    prompt = f"""Escribe EXCLUSIVAMENTE en ESPAÑOL LATINO.
-NO hagas ningún análisis en inglés. NO escribas explicaciones ni introducciones.
-
-Estilo de respuesta: {modo.upper()}
-
-Genera 3 opciones cortas, atractivas y listas para enviar por WhatsApp.
-
-Ejemplo de salida exacta requerida:
-1. "Primera opción de mensaje..."
-2. "Segunda opción de mensaje..."
-3. "Tercera opción de mensaje..."
+    prompt_usuario = f"""Responde únicamente con 3 mensajes sugeridos en Español Latino para enviar por chat.
+Estilo: {modo.upper()}
 
 Contexto del chat:
-{contexto}
-"""
+{contexto}"""
 
     try:
         resp = requests.post(
@@ -252,11 +242,17 @@ Contexto del chat:
             json={
                 "model": modelo_elegido,
                 "messages": [
-                    {"role": "system", "content": "Eres un asistente experto en seducción que responde directo con 3 opciones numeradas en español latino, sin análisis ni texto explicativo."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "Eres un asistente de conversación. Tu ÚNICA función es devolver 3 opciones de respuesta cortas y naturales en español latino. Queda estrictamente prohibido incluir analisis, pensamientos, listas de reglas o explicaciones en inglés o español."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt_usuario
+                    }
                 ],
                 "temperature": 0.7,
-                "max_tokens": 250
+                "max_tokens": 200
             },
             timeout=15
         )
