@@ -49,25 +49,30 @@ def obtener_modelo_chat_activo(api_key):
 
 def procesar_respuesta_ia(texto_raw):
     """
-    Limpia la respuesta de razonamientos internos y extrae exactamente las 3 opciones.
+    Filtra pensamientos, análisis en inglés y extrae únicamente las 3 opciones sugeridas.
     """
-    # Eliminar bloques <think>...</think> de razonamiento
-    texto_limpio = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL).strip()
+    # 1. Eliminar etiquetas de pensamiento <think>...</think>
+    texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
     
-    # Extraer líneas no vacías
-    lineas = [l.strip() for l in texto_limpio.split('\n') if l.strip()]
+    # 2. Buscar líneas que empiecen por número (1., 2., 3., 1-, 1), etc.)
+    lineas = texto.split('\n')
+    opciones = []
     
-    # Buscar el inicio de la lista ("1." o "1.-")
-    pos_uno = -1
-    for i, l in enumerate(lineas):
-        if l.startswith("1.") or l.startswith("1.-") or l.startswith("1)"):
-            pos_uno = i
-            break
+    for linea in lineas:
+        linea_str = linea.strip()
+        # Si la línea empieza con un número seguido de punto, guion o paréntesis (ej. 1., 1-, 1))
+        if re.match(r'^\d+[\.\-\)]', linea_str):
+            # Limpiar marcas de negrita Markdown (**)
+            linea_limpia = re.sub(r'\*\*', '', linea_str)
+            opciones.append(linea_limpia)
             
-    if pos_uno != -1:
-        opciones = lineas[pos_uno:pos_uno+3]
-        return "\n".join(opciones)
+    if len(opciones) >= 3:
+        return "\n\n".join(opciones[:3])
+    elif len(opciones) > 0:
+        return "\n\n".join(opciones)
         
+    # Si no detectó patrón numerado, limpiar negritas y retornar el texto sin bloques de análisis
+    texto_limpio = re.sub(r'\*\*', '', texto).strip()
     return texto_limpio
 
 HTML_TEMPLATE = """
@@ -105,7 +110,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v6.3</div>
+        <div class="subtitle">Asistente de Conquista v6.4</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -221,15 +226,17 @@ def procesar():
 
     modelo_elegido = obtener_modelo_chat_activo(key_actual)
 
-    prompt = f"""Responde únicamente en ESPAÑOL LATINO.
-Estilo: {modo.upper()}
+    prompt = f"""Escribe EXCLUSIVAMENTE en ESPAÑOL LATINO.
+NO hagas ningún análisis en inglés. NO escribas explicaciones ni introducciones.
 
-Genera EXACTAMENTE 3 opciones de respuesta cortas para WhatsApp.
+Estilo de respuesta: {modo.upper()}
 
-FORMATO DE SALIDA (Empieza directo en el 1):
-1. "Opción 1"
-2. "Opción 2"
-3. "Opción 3"
+Genera 3 opciones cortas, atractivas y listas para enviar por WhatsApp.
+
+Ejemplo de salida exacta requerida:
+1. "Primera opción de mensaje..."
+2. "Segunda opción de mensaje..."
+3. "Tercera opción de mensaje..."
 
 Contexto del chat:
 {contexto}
@@ -244,7 +251,10 @@ Contexto del chat:
             },
             json={
                 "model": modelo_elegido,
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": [
+                    {"role": "system", "content": "Eres un asistente experto en seducción que responde directo con 3 opciones numeradas en español latino, sin análisis ni texto explicativo."},
+                    {"role": "user", "content": prompt}
+                ],
                 "temperature": 0.7,
                 "max_tokens": 250
             },
