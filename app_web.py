@@ -18,37 +18,48 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
-def obtener_modelo_activo(api_key):
+def obtener_modelo_chat_activo(api_key):
     """
-    Obtiene dinámicamente un modelo activo de texto en Groq.
+    Obtiene dinámicamente un modelo de GENERACIÓN DE TEXTO activo en Groq,
+    filtrando herramientas de seguridad/guardrails.
     """
+    # Lista de preferencia de modelos de conversación probados
+    modelos_preferidos = [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "qwen-2.5-32b"
+    ]
+    
     try:
         url = "https://api.groq.com/openai/v1/models"
         headers = {"Authorization": f"Bearer {api_key}"}
         response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             models_data = response.json().get("data", [])
-            for m in models_data:
-                m_id = m.get("id", "")
-                if "llama-3.3" in m_id or "llama-3.1" in m_id:
-                    return m_id
-            for m in models_data:
-                m_id = m.get("id", "")
-                if "llama" in m_id and "whisper" not in m_id and "vision" not in m_id:
+            ids_disponibles = [m.get("id", "") for m in models_data]
+            
+            # Buscar el primer modelo preferido disponible
+            for pref in modelos_preferidos:
+                if pref in ids_disponibles:
+                    return pref
+                    
+            # Si no encuentra ninguno preferido, busca uno de chat genérico evitando guardrails/vision/whisper
+            for m_id in ids_disponibles:
+                if ("llama" in m_id or "qwen" in m_id or "mixtral" in m_id) and not any(x in m_id for x in ["guard", "vision", "whisper", "embed"]):
                     return m_id
     except Exception:
         pass
+        
     return "llama-3.3-70b-versatile"
 
 def procesar_respuesta_ia(texto_raw):
     """
-    Extrae las 3 opciones limpia y correctamente del formato JSON o texto.
+    Procesa y limpia la respuesta garantizando que entregue un formato de lista válido.
     """
     texto_limpio = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL).strip()
     
-    # Intenta decodificar JSON primero
+    # Intenta parsear JSON
     try:
-        # Busca estructura JSON en el texto
         match_json = re.search(r'\{.*\}', texto_limpio, re.DOTALL)
         if match_json:
             datos = json.loads(match_json.group(0))
@@ -58,14 +69,9 @@ def procesar_respuesta_ia(texto_raw):
     except Exception:
         pass
 
-    # Si falla el JSON, procesa líneas numéricas directas
+    # Si no es JSON válido, procesa texto por líneas
     lineas = [l.strip() for l in texto_limpio.split('\n') if l.strip()]
-    lineas_validas = []
-    for l in lineas:
-        # Filtra números sueltos o decimales
-        if re.match(r'^\d+\.?\d*$', l):
-            continue
-        lineas_validas.append(l)
+    lineas_validas = [l for l in lineas if not re.match(r'^\d+\.?\d*$', l)]
         
     pos_uno = -1
     for i, l in enumerate(lineas_validas):
@@ -113,7 +119,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v6.1</div>
+        <div class="subtitle">Asistente de Conquista v6.2</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -227,18 +233,18 @@ def procesar():
     if not key_actual:
         return jsonify({'error': 'Falta la variable GROQ_API_KEY en Render.'}), 500
 
-    modelo_elegido = obtener_modelo_activo(key_actual)
+    modelo_elegido = obtener_modelo_chat_activo(key_actual)
 
     prompt = f"""Eres un experto en seducción y chat.
 Estilo deseado: {modo.upper()}
 Idioma: ESPAÑOL LATINO.
 
-Debes responder estrictamente con un formato JSON con la siguiente estructura:
+Debes responder estrictamente en formato JSON con la siguiente estructura exacta:
 {{
   "opciones": [
-    "Primera opción de respuesta corta para WhatsApp",
-    "Segunda opción de respuesta corta para WhatsApp",
-    "Tercera opción de respuesta corta para WhatsApp"
+    "Primera opción de respuesta para WhatsApp",
+    "Segunda opción de respuesta para WhatsApp",
+    "Tercera opción de respuesta para WhatsApp"
   ]
 }}
 
