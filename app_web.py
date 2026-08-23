@@ -45,13 +45,9 @@ def obtener_modelo_chat_activo(api_key):
 
 def procesar_respuesta_ia(texto_raw):
     """
-    Elimina cualquier análisis en inglés, encabezados técnicos y extrae
-    exclusivamente las sugerencias de respuesta en español.
+    Elimina cualquier análisis técnico o en inglés y extrae únicamente las sugerencias útiles.
     """
-    # 1. Eliminar bloques de pensamiento <think>...</think>
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
-    
-    # 2. Filtrar líneas que contengan texto técnico en inglés
     lineas = texto.split('\n')
     lineas_filtradas = []
     
@@ -61,15 +57,12 @@ def procesar_respuesta_ia(texto_raw):
         linea_str = l.strip()
         if not linea_str:
             continue
-        # Descartar si coincide con encabezados técnicos
         if any(p in linea_str.lower() for p in palabras_basura):
             continue
         
-        # Limpiar marcas de formato Markdown como asteriscos o comillas externas
         linea_limpia = re.sub(r'\*\*', '', linea_str)
         lineas_filtradas.append(linea_limpia)
 
-    # 3. Formatear y retornar el resultado limpio
     if lineas_filtradas:
         return "\n\n".join(lineas_filtradas)
     
@@ -82,7 +75,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spark IA - Tu Asistente de Conquista</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://unpkg.com/tesseract.js@v5.0.5/dist/tesseract.min.js"></script>
     <style>
         body { background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; margin: 0; }
         .container { max-width: 500px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 20px; }
@@ -90,7 +83,7 @@ HTML_TEMPLATE = """
         .subtitle { color: #888; font-size: 14px; margin-bottom: 20px; }
         .upload-area { border: 2px dashed #888; border-radius: 15px; padding: 20px; cursor: pointer; background: #252525; margin-bottom: 15px; }
         #preview-img { max-width: 100%; max-height: 250px; border-radius: 10px; margin-top: 10px; display: none; }
-        textarea { width: 90%; height: 60px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 12px; padding: 12px; resize: none; margin-bottom: 15px; font-size: 14px;}
+        textarea { width: 90%; height: 70px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 12px; padding: 12px; resize: none; margin-bottom: 15px; font-size: 14px;}
         
         .grid-botones { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
         .btn-base { border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; color: white; text-transform: uppercase; font-size: 12px;}
@@ -110,7 +103,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v6.5</div>
+        <div class="subtitle">Asistente de Conquista v6.6</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -151,14 +144,18 @@ HTML_TEMPLATE = """
                     
                     const status = document.getElementById('status-ocr');
                     status.style.display = 'block';
-                    status.innerText = "🔍 Procesando texto...";
+                    status.innerText = "🔍 Procesando imagen...";
                     
                     try {
-                        const result = await Tesseract.recognize(imagenBase64, 'spa');
-                        textoExtraidoOCR = result.data.text.trim();
-                        status.innerText = "✅ Captura leída correctamente";
+                        if (typeof Tesseract !== 'undefined') {
+                            const result = await Tesseract.recognize(imagenBase64, 'spa');
+                            textoExtraidoOCR = result.data.text.trim();
+                            status.innerText = "✅ Captura leída correctamente";
+                        } else {
+                            status.innerText = "⚠️ Tesseract no disponible. Escribe abajo.";
+                        }
                     } catch (err) {
-                        status.innerText = "⚠️ Ingrese el contexto abajo.";
+                        status.innerText = "⚠️ No se pudo leer la imagen. Escribe el contexto abajo.";
                     }
                 };
                 reader.readAsDataURL(file);
@@ -182,7 +179,7 @@ HTML_TEMPLATE = """
             const contextoFinal = (textoExtraidoOCR + "\n" + textoManual).trim();
             
             if (!contextoFinal && modo !== 'Iniciar Conversación') {
-                resDiv.innerText = "⚠️ Suba una captura o escriba el mensaje en el cuadro de texto.";
+                resDiv.innerText = "⚠️ Por favor, escribe un contexto en el cuadro de texto o sube una captura.";
                 return;
             }
             
@@ -226,10 +223,10 @@ def procesar():
 
     modelo_elegido = obtener_modelo_chat_activo(key_actual)
 
-    prompt_usuario = f"""Responde únicamente con 3 mensajes sugeridos en Español Latino para enviar por chat.
-Estilo: {modo.upper()}
+    prompt_usuario = f"""Genera 3 respuestas cortas en Español Latino para enviar por mensaje de texto.
+Estilo deseado: {modo.upper()}
 
-Contexto del chat:
+Contexto de la conversación:
 {contexto}"""
 
     try:
@@ -244,7 +241,7 @@ Contexto del chat:
                 "messages": [
                     {
                         "role": "system",
-                        "content": "Eres un asistente de conversación. Tu ÚNICA función es devolver 3 opciones de respuesta cortas y naturales en español latino. Queda estrictamente prohibido incluir analisis, pensamientos, listas de reglas o explicaciones en inglés o español."
+                        "content": "Eres un asistente de seducción y conversación. Tu única tarea es dar 3 opciones de respuesta breves en español latino. No agregues analisis en ingles, razonamientos ni explicaciones adicionales."
                     },
                     {
                         "role": "user",
