@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import threading
 import time
 import requests
@@ -19,8 +20,7 @@ threading.Thread(target=keep_alive, daemon=True).start()
 
 def obtener_modelo_activo(api_key):
     """
-    Consulta la API de Groq dinámicamente para obtener el primer modelo 
-    de texto activo y evitar fallos por modelos retirados.
+    Obtiene dinámicamente un modelo activo de texto en Groq.
     """
     try:
         url = "https://api.groq.com/openai/v1/models"
@@ -30,24 +30,53 @@ def obtener_modelo_activo(api_key):
             models_data = response.json().get("data", [])
             for m in models_data:
                 m_id = m.get("id", "")
+                if "llama-3.3" in m_id or "llama-3.1" in m_id:
+                    return m_id
+            for m in models_data:
+                m_id = m.get("id", "")
                 if "llama" in m_id and "whisper" not in m_id and "vision" not in m_id:
                     return m_id
-            if models_data:
-                return models_data[0]["id"]
     except Exception:
         pass
     return "llama-3.3-70b-versatile"
 
-def limpiar_pensamiento_ia(texto):
+def procesar_respuesta_ia(texto_raw):
     """
-    Elimina razonamiento interno (<think>...</think>) 
-    y asegura que el texto empiece desde el punto '1.'.
+    Extrae las 3 opciones limpia y correctamente del formato JSON o texto.
     """
-    texto_limpio = re.sub(r'<think>.*?</think>', '', texto, flags=re.DOTALL)
-    pos_uno = texto_limpio.find("1.")
+    texto_limpio = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL).strip()
+    
+    # Intenta decodificar JSON primero
+    try:
+        # Busca estructura JSON en el texto
+        match_json = re.search(r'\{.*\}', texto_limpio, re.DOTALL)
+        if match_json:
+            datos = json.loads(match_json.group(0))
+            opciones = datos.get("opciones", [])
+            if len(opciones) >= 3:
+                return f"1. \"{opciones[0]}\"\n2. \"{opciones[1]}\"\n3. \"{opciones[2]}\""
+    except Exception:
+        pass
+
+    # Si falla el JSON, procesa líneas numéricas directas
+    lineas = [l.strip() for l in texto_limpio.split('\n') if l.strip()]
+    lineas_validas = []
+    for l in lineas:
+        # Filtra números sueltos o decimales
+        if re.match(r'^\d+\.?\d*$', l):
+            continue
+        lineas_validas.append(l)
+        
+    pos_uno = -1
+    for i, l in enumerate(lineas_validas):
+        if l.startswith("1.") or l.startswith("1.-"):
+            pos_uno = i
+            break
+            
     if pos_uno != -1:
-        texto_limpio = texto_limpio[pos_uno:]
-    return texto_limpio.strip()
+        return "\n".join(lineas_validas[pos_uno:pos_uno+3])
+        
+    return texto_limpio
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -84,7 +113,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v6.0</div>
+        <div class="subtitle">Asistente de Conquista v6.1</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -200,21 +229,20 @@ def procesar():
 
     modelo_elegido = obtener_modelo_activo(key_actual)
 
-    prompt = f"""Tu trabajo es responder UNICAMENTE en ESPAÑOL LATINO.
-Modo de respuesta: {modo.upper()}
+    prompt = f"""Eres un experto en seducción y chat.
+Estilo deseado: {modo.upper()}
+Idioma: ESPAÑOL LATINO.
 
-Genera 3 opciones de respuesta cortas, directas e idóneas para WhatsApp.
+Debes responder estrictamente con un formato JSON con la siguiente estructura:
+{{
+  "opciones": [
+    "Primera opción de respuesta corta para WhatsApp",
+    "Segunda opción de respuesta corta para WhatsApp",
+    "Tercera opción de respuesta corta para WhatsApp"
+  ]
+}}
 
-FORMATO OBLIGATORIO DE SALIDA:
-1. "Opción 1"
-2. "Opción 2"
-3. "Opción 3"
-
-REGLAS STRICTAS:
-- NO escribas intros, saludos, pensamientos ni notas en inglés.
-- Empieza directamente en el número 1.
-
-Contexto del chat:
+Contexto de la conversación:
 {contexto}
 """
 
@@ -229,20 +257,21 @@ Contexto del chat:
                 "model": modelo_elegido,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.7,
-                "max_tokens": 250
+                "max_tokens": 300,
+                "response_format": {"type": "json_object"}
             },
             timeout=15
         )
         res_json = resp.json()
         if resp.status_code == 200 and "choices" in res_json:
             raw_text = res_json["choices"][0]["message"]["content"]
-            texto_final = limpiar_pensamiento_ia(raw_text)
+            texto_final = procesar_respuesta_ia(raw_text)
             return jsonify({'respuesta': texto_final})
         else:
-            msg_error = res_json.get("error", {}).get("message", "Error en Groq")
+            msg_error = res_json.get("error", {}).get("message", "Error de comunicación")
             return jsonify({'error': f"Groq ({modelo_elegido}): {msg_error}"}), 500
     except Exception as e:
-        return jsonify({'error': f"Excepción al conectar: {str(e)}"}), 500
+        return jsonify({'error': f"Excepción al procesar: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
