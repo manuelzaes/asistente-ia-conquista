@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import threading
 import time
 import requests
@@ -20,10 +19,8 @@ threading.Thread(target=keep_alive, daemon=True).start()
 
 def obtener_modelo_chat_activo(api_key):
     """
-    Obtiene dinámicamente un modelo de GENERACIÓN DE TEXTO activo en Groq,
-    filtrando herramientas de seguridad/guardrails.
+    Selecciona un modelo oficial de conversación estable en Groq.
     """
-    # Lista de preferencia de modelos de conversación probados
     modelos_preferidos = [
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
@@ -38,14 +35,12 @@ def obtener_modelo_chat_activo(api_key):
             models_data = response.json().get("data", [])
             ids_disponibles = [m.get("id", "") for m in models_data]
             
-            # Buscar el primer modelo preferido disponible
             for pref in modelos_preferidos:
                 if pref in ids_disponibles:
                     return pref
                     
-            # Si no encuentra ninguno preferido, busca uno de chat genérico evitando guardrails/vision/whisper
             for m_id in ids_disponibles:
-                if ("llama" in m_id or "qwen" in m_id or "mixtral" in m_id) and not any(x in m_id for x in ["guard", "vision", "whisper", "embed"]):
+                if ("llama" in m_id or "qwen" in m_id) and not any(x in m_id for x in ["guard", "vision", "whisper", "embed"]):
                     return m_id
     except Exception:
         pass
@@ -54,33 +49,24 @@ def obtener_modelo_chat_activo(api_key):
 
 def procesar_respuesta_ia(texto_raw):
     """
-    Procesa y limpia la respuesta garantizando que entregue un formato de lista válido.
+    Limpia la respuesta de razonamientos internos y extrae exactamente las 3 opciones.
     """
+    # Eliminar bloques <think>...</think> de razonamiento
     texto_limpio = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL).strip()
     
-    # Intenta parsear JSON
-    try:
-        match_json = re.search(r'\{.*\}', texto_limpio, re.DOTALL)
-        if match_json:
-            datos = json.loads(match_json.group(0))
-            opciones = datos.get("opciones", [])
-            if len(opciones) >= 3:
-                return f"1. \"{opciones[0]}\"\n2. \"{opciones[1]}\"\n3. \"{opciones[2]}\""
-    except Exception:
-        pass
-
-    # Si no es JSON válido, procesa texto por líneas
+    # Extraer líneas no vacías
     lineas = [l.strip() for l in texto_limpio.split('\n') if l.strip()]
-    lineas_validas = [l for l in lineas if not re.match(r'^\d+\.?\d*$', l)]
-        
+    
+    # Buscar el inicio de la lista ("1." o "1.-")
     pos_uno = -1
-    for i, l in enumerate(lineas_validas):
-        if l.startswith("1.") or l.startswith("1.-"):
+    for i, l in enumerate(lineas):
+        if l.startswith("1.") or l.startswith("1.-") or l.startswith("1)"):
             pos_uno = i
             break
             
     if pos_uno != -1:
-        return "\n".join(lineas_validas[pos_uno:pos_uno+3])
+        opciones = lineas[pos_uno:pos_uno+3]
+        return "\n".join(opciones)
         
     return texto_limpio
 
@@ -119,7 +105,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v6.2</div>
+        <div class="subtitle">Asistente de Conquista v6.3</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -235,20 +221,17 @@ def procesar():
 
     modelo_elegido = obtener_modelo_chat_activo(key_actual)
 
-    prompt = f"""Eres un experto en seducción y chat.
-Estilo deseado: {modo.upper()}
-Idioma: ESPAÑOL LATINO.
+    prompt = f"""Responde únicamente en ESPAÑOL LATINO.
+Estilo: {modo.upper()}
 
-Debes responder estrictamente en formato JSON con la siguiente estructura exacta:
-{{
-  "opciones": [
-    "Primera opción de respuesta para WhatsApp",
-    "Segunda opción de respuesta para WhatsApp",
-    "Tercera opción de respuesta para WhatsApp"
-  ]
-}}
+Genera EXACTAMENTE 3 opciones de respuesta cortas para WhatsApp.
 
-Contexto de la conversación:
+FORMATO DE SALIDA (Empieza directo en el 1):
+1. "Opción 1"
+2. "Opción 2"
+3. "Opción 3"
+
+Contexto del chat:
 {contexto}
 """
 
@@ -263,8 +246,7 @@ Contexto de la conversación:
                 "model": modelo_elegido,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.7,
-                "max_tokens": 300,
-                "response_format": {"type": "json_object"}
+                "max_tokens": 250
             },
             timeout=15
         )
