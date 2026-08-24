@@ -5,6 +5,7 @@ import threading
 import time
 import requests
 from flask import Flask, render_template_string, request, jsonify
+from groq import Groq
 
 app = Flask(__name__)
 
@@ -19,9 +20,6 @@ def keep_alive():
 threading.Thread(target=keep_alive, daemon=True).start()
 
 def procesar_respuesta_ia(texto_raw, modo):
-    """
-    Limpia etiquetas de razonamiento interno y agrega el título del estilo.
-    """
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
     if '<think>' in texto:
         texto = texto.split('<think>')[0]
@@ -86,7 +84,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v8.3</div>
+        <div class="subtitle">Asistente de Conquista v8.4</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -140,11 +138,6 @@ HTML_TEMPLATE = """
             const resDiv = document.getElementById('res');
             const textoManual = document.getElementById('texto-adicional').value;
             
-            if (!imagenBase64 && !textoManual && modo !== 'Iniciar Conversación') {
-                resDiv.innerText = "⚠️ Escribe un mensaje o sube una imagen para empezar.";
-                return;
-            }
-            
             resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas ' + modo.toLowerCase() + 's...</span>';
             
             try {
@@ -182,72 +175,44 @@ def procesar():
     texto_manual = data.get('texto', '')
     modo = data.get('modo', 'Coqueto')
 
-    key_actual = os.environ.get("GROQ_API_KEY", "").strip()
-    if not key_actual:
+    api_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not api_key:
         return jsonify({'error': 'Falta la variable GROQ_API_KEY en Render.'}), 500
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {key_actual}"
-    }
-
-    # Definición precisa de las proporciones/tonos según el botón
     guia_estilo = {
-        "Iniciar Conversación": "Abridor rompehielos original, entretenido y fácil de responder.",
-        "Romántico": "Cálido, tierno, expresivo y detallista sin sonar cursi o exagerado.",
-        "Coqueto": "Divertido, juguetón, con chispa, tono coqueto y encanto sutil.",
-        "Picante": "Atrevido, audaz, con tensión sexual moderada, sugerista y directo.",
-        "Provocativo": "Desafiante, misterioso, que deje picada a la persona y la obligue a responder.",
-        "Salvar el Momento": "Ingenioso, desenfadado para reactivar una charla fría o vista sin responder."
+        "Iniciar Conversación": "Rompehielos original, fluido e ingenioso para abrir conversación.",
+        "Romántico": "Cálido, tierno, expresivo y detallista pero sin sonar exagerado.",
+        "Coqueto": "Divertido, juguetón, con chispa y picardía ligera.",
+        "Picante": "Atrevido, audaz, con tensión y coquetería directa.",
+        "Provocativo": "Desafiante, misterioso, que obligue a responder.",
+        "Salvar el Momento": "Ingenioso y desenfadado para revivir un chat apagado."
     }
 
     estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
-    semilla_variacion = random.randint(1000, 9999)
+    semilla = random.randint(100, 999)
 
-    prompt_estricto = (
-        f"[Variación #{semilla_variacion}] "
-        f"Contexto o mensaje recibido: '{texto_manual}'. "
-        f"Tu objetivo es dar 3 opciones de respuesta exactamente en tono {modo.upper()}. "
-        f"Guía de tono para este estilo: {estilo_instruccion} "
-        f"Usa lenguaje natural de chat en Español Latino. "
-        f"Regla de formato: Entrega SOLO las 3 opciones numeradas del 1 al 3. Cero texto extra."
+    prompt = (
+        f"Contexto: '{texto_manual}'. Genera exactamente 3 opciones de respuesta en estilo {modo.upper()}.\n"
+        f"Enfoque del tono: {estilo_instruccion}\n"
+        f"Regla: Entrega únicamente las 3 opciones numeradas del 1 al 3 en español latino. Código de variación: {semilla}."
     )
 
-    modelos_a_probar = [
-        "llama-3.1-8b-instant",
-        "qwen/qwen3.6-27b",
-        "openai/gpt-oss-20b"
-    ]
-
-    for mod in modelos_a_probar:
-        body = {
-            "model": mod,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": f"Eres un experto en seducción y dinámica de chats. Tu especialidad es adaptar la tensión del mensaje exacto al tono {modo}."
-                },
-                {
-                    "role": "user",
-                    "content": prompt_estricto
-                }
+    try:
+        client = Groq(api_key=api_key)
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "Eres un asistente experto en respuestas inteligentes de chat y seducción."},
+                {"role": "user", "content": prompt}
             ],
-            "temperature": 0.9,
-            "max_tokens": 250
-        }
-
-        try:
-            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body, timeout=15)
-            res_json = resp.json()
-
-            if resp.status_code == 200 and "choices" in res_json:
-                raw_text = res_json["choices"][0]["message"]["content"]
-                texto_final = procesar_respuesta_ia(raw_text, modo)
-                return jsonify({'respuesta': texto_final})
-        except Exception:
-            continue
-
-    return jsonify({'error': 'No se pudo generar la respuesta. Presiona el botón nuevamente.'}), 500
+            temperature=0.85,
+            max_tokens=250
+        )
+        raw_text = completion.choices[0].message.content
+        texto_final = procesar_respuesta_ia(raw_text, modo)
+        return jsonify({'respuesta': texto_final})
+    except Exception as e:
+        return jsonify({'error': f'Error en API: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
