@@ -84,7 +84,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v8.4</div>
+        <div class="subtitle">Asistente de Conquista v8.5</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -181,7 +181,7 @@ def procesar():
 
     guia_estilo = {
         "Iniciar Conversación": "Rompehielos original, fluido e ingenioso para abrir conversación.",
-        "Romántico": "Cálido, tierno, expresivo y detallista pero sin sonar exagerado.",
+        "Romántico": "Cálido, tierno, expresivo y detallista sin sonar cursi.",
         "Coqueto": "Divertido, juguetón, con chispa y picardía ligera.",
         "Picante": "Atrevido, audaz, con tensión y coquetería directa.",
         "Provocativo": "Desafiante, misterioso, que obligue a responder.",
@@ -194,13 +194,13 @@ def procesar():
     prompt = (
         f"Contexto: '{texto_manual}'. Genera exactamente 3 opciones de respuesta en estilo {modo.upper()}.\n"
         f"Enfoque del tono: {estilo_instruccion}\n"
-        f"Regla: Entrega únicamente las 3 opciones numeradas del 1 al 3 en español latino. Código de variación: {semilla}."
+        f"Regla: Entrega únicamente las 3 opciones numeradas del 1 al 3 en español latino. Variación: {semilla}."
     )
 
     try:
         client = Groq(api_key=api_key)
         completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": "Eres un asistente experto en respuestas inteligentes de chat y seducción."},
                 {"role": "user", "content": prompt}
