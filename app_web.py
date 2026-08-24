@@ -18,10 +18,13 @@ def keep_alive():
 threading.Thread(target=keep_alive, daemon=True).start()
 
 def obtener_modelo_vision_activo(api_key):
+    """
+    Prioriza modelos Llama Vision livianos para evitar el límite de tokens de Qwen.
+    """
     modelos_vision_preferidos = [
-        "qwen/qwen3.6-27b",
         "llama-3.2-11b-vision-preview",
-        "llama-3.2-90b-vision-preview"
+        "llama-3.2-90b-vision-preview",
+        "qwen/qwen3.6-27b"
     ]
     try:
         url = "https://api.groq.com/openai/v1/models"
@@ -34,11 +37,11 @@ def obtener_modelo_vision_activo(api_key):
                 if pref in ids_disponibles:
                     return pref
             for m_id in ids_disponibles:
-                if "vision" in m_id or "qwen" in m_id:
+                if "vision" in m_id:
                     return m_id
     except Exception:
         pass
-    return "qwen/qwen3.6-27b"
+    return "llama-3.2-11b-vision-preview"
 
 def obtener_modelo_texto_activo(api_key):
     try:
@@ -57,12 +60,9 @@ def obtener_modelo_texto_activo(api_key):
 
 def procesar_respuesta_ia(texto_raw):
     """
-    Filtra estrictamente cualquier etiqueta <think> o analisis.
+    Filtra etiquetas internas y deja solo los mensajes limpios.
     """
-    # Eliminar bloque <think> completado
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
-    
-    # Si la respuesta cortó el pensamiento sin cerrar </think>
     if '<think>' in texto and '</think>' not in texto:
         texto = texto.split('<think>')[0]
     elif '</think>' in texto:
@@ -89,7 +89,7 @@ def procesar_respuesta_ia(texto_raw):
     if lineas_filtradas:
         return "\n\n".join(lineas_filtradas)
     
-    return "1. ¿Cómo vas con eso? ¡Espero que todo marche genial!\n\n2. Gracias por responder, avísame si necesitas algo.\n\n3. Un abrazo, que tengas un excelente día."
+    return "1. ¿Cómo vas con todo? Espero que genial.\n\n2. Gracias por responder, estamos al habla.\n\n3. ¡Muchos éxitos en tu día!"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -124,7 +124,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v7.2</div>
+        <div class="subtitle">Asistente de Conquista v7.3</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -183,7 +183,7 @@ HTML_TEMPLATE = """
                 return;
             }
             
-            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones únicas...</span>';
             
             try {
                 const response = await fetch('/procesar', {
@@ -231,9 +231,9 @@ def procesar():
     }
 
     prompt_estricto = (
-        f"RESPONDE DIRECTAMENTE CON 3 OPCIONES DE MENSAJES EN ESPAÑOL LATINO. "
-        f"NO ANALICES, NO PIENSES EN VOZ ALTA, NO ESCRIBAS INTRODUCCIONES. "
-        f"Estilo: {modo.upper()}. Contexto: '{texto_manual}'."
+        f"Genera 3 opciones de mensajes completamente NUEVAS Y DIFERENTES en Español Latino. "
+        f"Estilo: {modo.upper()}. Contexto: '{texto_manual}'. "
+        f"NO PIENSES, NO ANALICES. Da solo 3 opciones directas para enviar."
     )
 
     if imagen_b64:
@@ -251,30 +251,41 @@ def procesar():
         "messages": [
             {
                 "role": "system",
-                "content": "Eres un generador directo de mensajes de texto en español latino. Queda estrictamente prohibido pensar, analizar o dar explicaciones. Da solo 3 respuestas numeradas listas para enviar."
+                "content": "Eres un asistente de seducción experto. Responde ÚNICAMENTE con 3 opciones cortas numeradas en español latino. Prohibido incluir razonamiento o texto adicional."
             },
             {
                 "role": "user",
                 "content": content_payload
             }
         ],
-        "temperature": 0.7,
-        "max_tokens": 600
+        "temperature": 0.9,
+        "max_tokens": 400
     }
 
-    try:
-        resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body, timeout=20)
-        res_json = resp.json()
-        
-        if resp.status_code == 200 and "choices" in res_json:
-            raw_text = res_json["choices"][0]["message"]["content"]
-            texto_final = procesar_respuesta_ia(raw_text)
-            return jsonify({'respuesta': texto_final})
-        else:
-            msg_error = res_json.get("error", {}).get("message", "Error de comunicación")
-            return jsonify({'error': f"Groq Error: {msg_error}"}), 500
-    except Exception as e:
-        return jsonify({'error': f"Excepción al procesar: {str(e)}"}), 500
+    # Reintento automático en caso de rate limit
+    for intento in range(2):
+        try:
+            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body, timeout=20)
+            res_json = resp.json()
+            
+            if resp.status_code == 200 and "choices" in res_json:
+                raw_text = res_json["choices"][0]["message"]["content"]
+                texto_final = procesar_respuesta_ia(raw_text)
+                return jsonify({'respuesta': texto_final})
+            
+            # Si se topa con el rate limit de tokens, espera 2 segundos y reintenta
+            if "Rate limit" in str(res_json):
+                time.sleep(2.5)
+                continue
+            else:
+                msg_error = res_json.get("error", {}).get("message", "Error de comunicación")
+                return jsonify({'error': f"Groq Error: {msg_error}"}), 500
+        except Exception as e:
+            if intento == 1:
+                return jsonify({'error': f"Excepción al procesar: {str(e)}"}), 500
+            time.sleep(2)
+
+    return jsonify({'error': 'El servidor ocupado. Por favor presiona el botón nuevamente.'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
