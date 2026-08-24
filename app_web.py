@@ -20,7 +20,7 @@ threading.Thread(target=keep_alive, daemon=True).start()
 
 def procesar_respuesta_ia(texto_raw, modo):
     """
-    Limpia etiquetas internas y agrega el título del estilo seleccionado.
+    Limpia etiquetas de pensamiento interno y añade encabezado formateado.
     """
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
     if '<think>' in texto:
@@ -86,7 +86,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v8.1</div>
+        <div class="subtitle">Asistente de Conquista v8.2</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -179,7 +179,6 @@ def home():
 @app.route('/procesar', methods=['POST'])
 def procesar():
     data = request.json or {}
-    imagen_b64 = data.get('imagen')
     texto_manual = data.get('texto', '')
     modo = data.get('modo', 'Coqueto')
 
@@ -196,14 +195,19 @@ def procesar():
 
     prompt_estricto = (
         f"[Variación #{semilla_variacion}] "
-        f"Genera 3 sugerencias de mensajes 100% creativas y completamente distintas entre sí en Español Latino. "
+        f"Genera 3 respuestas breves, naturales y creativas en Español Latino. "
         f"ESTILO REQUERIDO: {modo.upper()}. "
         f"Contexto o texto del chat: '{texto_manual}'. "
-        f"Responde únicamente con una lista numerada del 1 al 3. Sin introducciones ni notas extra."
+        f"Responde únicamente con 3 opciones listas para enviar, una por línea numerada del 1 al 3."
     )
 
-    # Lista de modelos compatibles para intentar en secuencia si alguno falla
-    modelos_a_probar = ["llama-3.1-8b-instant", "llama3-70b-8192", "llama3-8b-8192"]
+    # Modelos oficiales activos en la infraestructura de Groq
+    modelos_a_probar = [
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.6-27b",
+        "llama-3.1-8b-instant"
+    ]
 
     for mod in modelos_a_probar:
         body = {
@@ -211,19 +215,19 @@ def procesar():
             "messages": [
                 {
                     "role": "system",
-                    "content": "Eres un asistente experto en respuestas de chat. Entrega solo 3 opciones directas en español latino."
+                    "content": "Eres un asistente de conquista rápida. Entregas exactamente 3 respuestas cortas numeradas en español latino."
                 },
                 {
                     "role": "user",
                     "content": prompt_estricto
                 }
             ],
-            "temperature": 0.9,
-            "max_tokens": 300
+            "temperature": 0.85,
+            "max_tokens": 200
         }
 
         try:
-            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body, timeout=12)
+            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body, timeout=20)
             res_json = resp.json()
 
             if resp.status_code == 200 and "choices" in res_json:
@@ -233,7 +237,7 @@ def procesar():
         except Exception:
             continue
 
-    return jsonify({'error': 'El servicio de IA tardó en responder. Por favor presiona el botón una vez más.'}), 500
+    return jsonify({'error': 'No se pudo conectar a los servidores de IA en este momento. Revisa la clave API en Render o reintenta.'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
