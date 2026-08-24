@@ -20,7 +20,7 @@ threading.Thread(target=keep_alive, daemon=True).start()
 
 def procesar_respuesta_ia(texto_raw, modo):
     """
-    Limpia etiquetas internas y le agrega el título con el estilo elegido.
+    Limpia etiquetas internas y agrega el título del estilo seleccionado.
     """
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
     if '<think>' in texto:
@@ -33,7 +33,7 @@ def procesar_respuesta_ia(texto_raw, modo):
     
     palabras_basura = [
         "analiz", "pensam", "usuario", "solicitud", "espera", "releyendo",
-        "thinking", "context", "strategy", "option 1", "option 2", "a aquí", "here is"
+        "thinking", "context", "strategy", "option 1", "option 2", "here is"
     ]
     
     for l in lineas:
@@ -46,7 +46,7 @@ def procesar_respuesta_ia(texto_raw, modo):
         linea_limpia = re.sub(r'\*\*', '', linea_str)
         lineas_filtradas.append(linea_limpia)
 
-    header = f"📌 **Respuestas sugeridas ({modo.upper()})**:\n\n"
+    header = f"📌 Respuestas estilo {modo.upper()}:\n\n"
 
     if lineas_filtradas:
         return header + "\n\n".join(lineas_filtradas)
@@ -86,7 +86,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v8.0</div>
+        <div class="subtitle">Asistente de Conquista v8.1</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -145,7 +145,7 @@ HTML_TEMPLATE = """
                 return;
             }
             
-            resDiv.innerHTML = '<span class="loading">🤔 Generando nuevas opciones...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas ' + modo.toLowerCase() + 's...</span>';
             
             try {
                 const response = await fetch('/procesar', {
@@ -192,71 +192,48 @@ def procesar():
         "Authorization": f"Bearer {key_actual}"
     }
 
-    # Semilla aleatoria para evitar que repita respuestas iguales
-    semilla_variacion = random.randint(100, 999)
+    semilla_variacion = random.randint(1000, 9999)
 
     prompt_estricto = (
-        f"Semilla de variación #{semilla_variacion}. "
-        f"Genera 3 opciones de mensajes TOTALMENTE NUEVAS, ORIGINALES Y VARIADAS en Español Latino. "
-        f"Estilo exacto solicitado: {modo.upper()}. Contexto adicional: '{texto_manual}'. "
-        f"Entrega únicamente 3 opciones numeradas (1, 2, 3) sin introducciones ni reflexiones."
+        f"[Variación #{semilla_variacion}] "
+        f"Genera 3 sugerencias de mensajes 100% creativas y completamente distintas entre sí en Español Latino. "
+        f"ESTILO REQUERIDO: {modo.upper()}. "
+        f"Contexto o texto del chat: '{texto_manual}'. "
+        f"Responde únicamente con una lista numerada del 1 al 3. Sin introducciones ni notas extra."
     )
 
-    # Para garantizar cero congelamientos y rápida velocidad de respuesta usamos llama-3.3-70b
-    modelo = "llama-3.3-70b-versatile"
+    # Lista de modelos compatibles para intentar en secuencia si alguno falla
+    modelos_a_probar = ["llama-3.1-8b-instant", "llama3-70b-8192", "llama3-8b-8192"]
 
-    if imagen_b64:
-        content_payload = [
-            {"type": "text", "text": prompt_estricto},
-            {"type": "image_url", "image_url": {"url": imagen_b64}}
-        ]
-        # Si la llamada de visión por imagen falla por el modelo deprecado de groq, intentamos el de respaldos
-        modelo = "llama-3.2-11b-vision-preview"
-    else:
-        content_payload = prompt_estricto
+    for mod in modelos_a_probar:
+        body = {
+            "model": mod,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "Eres un asistente experto en respuestas de chat. Entrega solo 3 opciones directas en español latino."
+                },
+                {
+                    "role": "user",
+                    "content": prompt_estricto
+                }
+            ],
+            "temperature": 0.9,
+            "max_tokens": 300
+        }
 
-    body = {
-        "model": modelo,
-        "messages": [
-            {
-                "role": "system",
-                "content": "Eres un coach experto en ligue y seducción. Tu tarea es dar únicamente 3 respuestas directas en español latino. Prohibido pensar o dar explicaciones."
-            },
-            {
-                "role": "user",
-                "content": content_payload
-            }
-        ],
-        "temperature": 0.95,
-        "max_tokens": 350
-    }
-
-    for intento in range(2):
         try:
-            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body, timeout=20)
+            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body, timeout=12)
             res_json = resp.json()
-            
+
             if resp.status_code == 200 and "choices" in res_json:
                 raw_text = res_json["choices"][0]["message"]["content"]
                 texto_final = procesar_respuesta_ia(raw_text, modo)
                 return jsonify({'respuesta': texto_final})
-            
-            # Manejo de fallback a texto si falla la imagen por rate limit
-            if imagen_b64 and intento == 0:
-                body["model"] = "llama-3.3-70b-versatile"
-                body["messages"][1]["content"] = f"{prompt_estricto} (Nota: La chica dijo 'Gracias Manu / Igualmente para ti' en la foto)."
-                time.sleep(1)
-                continue
+        except Exception:
+            continue
 
-            msg_error = res_json.get("error", {}).get("message", "Error de comunicación")
-            return jsonify({'error': f"Groq Error: {msg_error}"}), 500
-
-        except Exception as e:
-            if intento == 1:
-                return jsonify({'error': f"Excepción al procesar: {str(e)}"}), 500
-            time.sleep(1.5)
-
-    return jsonify({'error': 'El servidor está ocupado. Intenta de nuevo.'}), 500
+    return jsonify({'error': 'El servicio de IA tardó en responder. Por favor presiona el botón una vez más.'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
