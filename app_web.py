@@ -17,9 +17,58 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
+def obtener_modelo_vision_activo(api_key):
+    """
+    Consulta dinámicamente los modelos en Groq y retorna el modelo con capacidad de Visión disponible.
+    """
+    modelos_vision_preferidos = [
+        "qwen/qwen3.6-27b",
+        "llama-3.2-11b-vision-preview",
+        "llama-3.2-90b-vision-preview"
+    ]
+    try:
+        url = "https://api.groq.com/openai/v1/models"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            models_data = response.json().get("data", [])
+            ids_disponibles = [m.get("id", "") for m in models_data]
+            
+            # Buscar en lista de preferencia
+            for pref in modelos_vision_preferidos:
+                if pref in ids_disponibles:
+                    return pref
+            
+            # Buscar cualquier modelo con la palabra vision o qwen
+            for m_id in ids_disponibles:
+                if "vision" in m_id or "qwen" in m_id:
+                    return m_id
+    except Exception:
+        pass
+        
+    return "qwen/qwen3.6-27b"
+
+def obtener_modelo_texto_activo(api_key):
+    """
+    Consulta dinámicamente el modelo de texto estándar.
+    """
+    try:
+        url = "https://api.groq.com/openai/v1/models"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            models_data = response.json().get("data", [])
+            ids_disponibles = [m.get("id", "") for m in models_data]
+            for pref in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b"]:
+                if pref in ids_disponibles:
+                    return pref
+    except Exception:
+        pass
+    return "llama-3.3-70b-versatile"
+
 def procesar_respuesta_ia(texto_raw):
     """
-    Limpia cualquier rastro de pensamiento en inglés o formato técnico.
+    Limpia cualquier rastro de pensamiento interno o código técnico.
     """
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
     lineas = texto.split('\n')
@@ -72,7 +121,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v7.0 (Server Vision)</div>
+        <div class="subtitle">Asistente de Conquista v7.1</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -127,11 +176,11 @@ HTML_TEMPLATE = """
             const textoManual = document.getElementById('texto-adicional').value;
             
             if (!imagenBase64 && !textoManual && modo !== 'Iniciar Conversación') {
-                resDiv.innerText = "⚠️ Por favor, escribe un mensaje o suba una imagen.";
+                resDiv.innerText = "⚠️ Escribe un mensaje o sube una imagen para empezar.";
                 return;
             }
             
-            resDiv.innerHTML = '<span class="loading">🤔 Analizando y generando respuestas...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas...</span>';
             
             try {
                 const response = await fetch('/procesar', {
@@ -178,13 +227,12 @@ def procesar():
         "Authorization": f"Bearer {key_actual}"
     }
 
-    # Si hay imagen, usamos el modelo de Visión de Groq
     if imagen_b64:
-        modelo = "llama-3.2-11b-vision-preview"
+        modelo = obtener_modelo_vision_activo(key_actual)
         content_payload = [
             {
                 "type": "text",
-                "text": f"Analiza la captura de pantalla de este chat. Genera 3 sugerencias de respuesta en Español Latino con un estilo {modo.upper()}. Agrega este contexto adicional si existe: '{texto_manual}'."
+                "text": f"Analiza esta conversación. Dame 3 respuestas sugeridas en Español Latino con estilo {modo.upper()}. Contexto adicional: '{texto_manual}'."
             },
             {
                 "type": "image_url",
@@ -194,16 +242,15 @@ def procesar():
             }
         ]
     else:
-        # Si solo hay texto, usamos Llama 3.3 textil estándar
-        modelo = "llama-3.3-70b-versatile"
-        content_payload = f"Genera 3 respuestas cortas en Español Latino para enviar por chat. Estilo: {modo.upper()}. Contexto del chat: '{texto_manual}'."
+        modelo = obtener_modelo_texto_activo(key_actual)
+        content_payload = f"Dame 3 respuestas cortas en Español Latino para enviar por mensaje. Estilo: {modo.upper()}. Contexto: '{texto_manual}'."
 
     body = {
         "model": modelo,
         "messages": [
             {
                 "role": "system",
-                "content": "Eres un asistente de seducción experto. Tu única tarea es devolver 3 opciones de respuesta breves y listas para enviar en español latino. Jamás incluyas análisis en inglés, introducciones ni explicaciones."
+                "content": "Eres un asistente de conquista. Tu ÚNICA función es entregar 3 opciones de respuesta breves en español latino. Queda prohibido devolver reflexiones o texto en inglés."
             },
             {
                 "role": "user",
@@ -224,7 +271,7 @@ def procesar():
             return jsonify({'respuesta': texto_final})
         else:
             msg_error = res_json.get("error", {}).get("message", "Error de comunicación")
-            return jsonify({'error': f"Groq Error: {msg_error}"}), 500
+            return jsonify({'error': f"Groq Error ({modelo}): {msg_error}"}), 500
     except Exception as e:
         return jsonify({'error': f"Excepción al procesar: {str(e)}"}), 500
 
