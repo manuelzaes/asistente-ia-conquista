@@ -68,18 +68,32 @@ def obtener_modelo_texto_activo(api_key):
 
 def procesar_respuesta_ia(texto_raw):
     """
-    Limpia cualquier rastro de pensamiento interno o código técnico.
+    Elimina por completo la etiqueta <think>...</think> y todo razonamiento en inglés.
     """
+    # 1. Elimina todo el bloque <think>...</think> si existe
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
+    
+    # 2. Si quedó algo de texto antes del cierre de </think> (por corte de stream), eliminarlo
+    if '</think>' in texto:
+        texto = texto.split('</think>')[-1]
+
     lineas = texto.split('\n')
     lineas_filtradas = []
     
-    palabras_basura = ["analyze", "user input", "identify", "constraints", "language:", "style:", "first message"]
+    palabras_basura = [
+        "analyze", "user input", "identify", "constraints", "language:", 
+        "style:", "first message", "here's a thinking process", "situation:",
+        "role:", "task:", "context:", "option 1:", "option 2:", "option 3:"
+    ]
     
     for l in lineas:
         linea_str = l.strip()
-        if not linea_str or any(p in linea_str.lower() for p in palabras_basura):
+        if not linea_str:
             continue
+        # Descartar líneas que contengan análisis en inglés
+        if any(p in linea_str.lower() for p in palabras_basura):
+            continue
+        
         linea_limpia = re.sub(r'\*\*', '', linea_str)
         lineas_filtradas.append(linea_limpia)
 
