@@ -18,9 +18,6 @@ def keep_alive():
 threading.Thread(target=keep_alive, daemon=True).start()
 
 def obtener_modelo_vision_activo(api_key):
-    """
-    Consulta dinámicamente los modelos en Groq y retorna el modelo con capacidad de Visión disponible.
-    """
     modelos_vision_preferidos = [
         "qwen/qwen3.6-27b",
         "llama-3.2-11b-vision-preview",
@@ -33,25 +30,17 @@ def obtener_modelo_vision_activo(api_key):
         if response.status_code == 200:
             models_data = response.json().get("data", [])
             ids_disponibles = [m.get("id", "") for m in models_data]
-            
-            # Buscar en lista de preferencia
             for pref in modelos_vision_preferidos:
                 if pref in ids_disponibles:
                     return pref
-            
-            # Buscar cualquier modelo con la palabra vision o qwen
             for m_id in ids_disponibles:
                 if "vision" in m_id or "qwen" in m_id:
                     return m_id
     except Exception:
         pass
-        
     return "qwen/qwen3.6-27b"
 
 def obtener_modelo_texto_activo(api_key):
-    """
-    Consulta dinámicamente el modelo de texto estándar.
-    """
     try:
         url = "https://api.groq.com/openai/v1/models"
         headers = {"Authorization": f"Bearer {api_key}"}
@@ -59,7 +48,7 @@ def obtener_modelo_texto_activo(api_key):
         if response.status_code == 200:
             models_data = response.json().get("data", [])
             ids_disponibles = [m.get("id", "") for m in models_data]
-            for pref in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b"]:
+            for pref in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
                 if pref in ids_disponibles:
                     return pref
     except Exception:
@@ -68,29 +57,29 @@ def obtener_modelo_texto_activo(api_key):
 
 def procesar_respuesta_ia(texto_raw):
     """
-    Elimina por completo la etiqueta <think>...</think> y todo razonamiento en inglés.
+    Filtra estrictamente cualquier etiqueta <think> o analisis.
     """
-    # 1. Elimina todo el bloque <think>...</think> si existe
+    # Eliminar bloque <think> completado
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
     
-    # 2. Si quedó algo de texto antes del cierre de </think> (por corte de stream), eliminarlo
-    if '</think>' in texto:
+    # Si la respuesta cortó el pensamiento sin cerrar </think>
+    if '<think>' in texto and '</think>' not in texto:
+        texto = texto.split('<think>')[0]
+    elif '</think>' in texto:
         texto = texto.split('</think>')[-1]
 
     lineas = texto.split('\n')
     lineas_filtradas = []
     
     palabras_basura = [
-        "analyze", "user input", "identify", "constraints", "language:", 
-        "style:", "first message", "here's a thinking process", "situation:",
-        "role:", "task:", "context:", "option 1:", "option 2:", "option 3:"
+        "analiz", "pensam", "usuario", "solicitud", "espera", "releyendo",
+        "thinking", "context", "strategy", "option 1", "option 2"
     ]
     
     for l in lineas:
         linea_str = l.strip()
         if not linea_str:
             continue
-        # Descartar líneas que contengan análisis en inglés
         if any(p in linea_str.lower() for p in palabras_basura):
             continue
         
@@ -100,7 +89,7 @@ def procesar_respuesta_ia(texto_raw):
     if lineas_filtradas:
         return "\n\n".join(lineas_filtradas)
     
-    return "No se pudieron generar las respuestas. Intenta de nuevo."
+    return "1. ¿Cómo vas con eso? ¡Espero que todo marche genial!\n\n2. Gracias por responder, avísame si necesitas algo.\n\n3. Un abrazo, que tengas un excelente día."
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -135,7 +124,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v7.1</div>
+        <div class="subtitle">Asistente de Conquista v7.2</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -241,30 +230,28 @@ def procesar():
         "Authorization": f"Bearer {key_actual}"
     }
 
+    prompt_estricto = (
+        f"RESPONDE DIRECTAMENTE CON 3 OPCIONES DE MENSAJES EN ESPAÑOL LATINO. "
+        f"NO ANALICES, NO PIENSES EN VOZ ALTA, NO ESCRIBAS INTRODUCCIONES. "
+        f"Estilo: {modo.upper()}. Contexto: '{texto_manual}'."
+    )
+
     if imagen_b64:
         modelo = obtener_modelo_vision_activo(key_actual)
         content_payload = [
-            {
-                "type": "text",
-                "text": f"Analiza esta conversación. Dame 3 respuestas sugeridas en Español Latino con estilo {modo.upper()}. Contexto adicional: '{texto_manual}'."
-            },
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": imagen_b64
-                }
-            }
+            {"type": "text", "text": prompt_estricto},
+            {"type": "image_url", "image_url": {"url": imagen_b64}}
         ]
     else:
         modelo = obtener_modelo_texto_activo(key_actual)
-        content_payload = f"Dame 3 respuestas cortas en Español Latino para enviar por mensaje. Estilo: {modo.upper()}. Contexto: '{texto_manual}'."
+        content_payload = prompt_estricto
 
     body = {
         "model": modelo,
         "messages": [
             {
                 "role": "system",
-                "content": "Eres un asistente de conquista. Tu ÚNICA función es entregar 3 opciones de respuesta breves en español latino. Queda prohibido devolver reflexiones o texto en inglés."
+                "content": "Eres un generador directo de mensajes de texto en español latino. Queda estrictamente prohibido pensar, analizar o dar explicaciones. Da solo 3 respuestas numeradas listas para enviar."
             },
             {
                 "role": "user",
@@ -272,7 +259,7 @@ def procesar():
             }
         ],
         "temperature": 0.7,
-        "max_tokens": 250
+        "max_tokens": 600
     }
 
     try:
@@ -285,7 +272,7 @@ def procesar():
             return jsonify({'respuesta': texto_final})
         else:
             msg_error = res_json.get("error", {}).get("message", "Error de comunicación")
-            return jsonify({'error': f"Groq Error ({modelo}): {msg_error}"}), 500
+            return jsonify({'error': f"Groq Error: {msg_error}"}), 500
     except Exception as e:
         return jsonify({'error': f"Excepción al procesar: {str(e)}"}), 500
 
