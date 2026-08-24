@@ -17,49 +17,20 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
-def obtener_modelo_chat_activo(api_key):
-    modelos_preferidos = [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
-        "qwen-2.5-32b"
-    ]
-    try:
-        url = "https://api.groq.com/openai/v1/models"
-        headers = {"Authorization": f"Bearer {api_key}"}
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code == 200:
-            models_data = response.json().get("data", [])
-            ids_disponibles = [m.get("id", "") for m in models_data]
-            
-            for pref in modelos_preferidos:
-                if pref in ids_disponibles:
-                    return pref
-                    
-            for m_id in ids_disponibles:
-                if ("llama" in m_id or "qwen" in m_id) and not any(x in m_id for x in ["guard", "vision", "whisper", "embed"]):
-                    return m_id
-    except Exception:
-        pass
-        
-    return "llama-3.3-70b-versatile"
-
 def procesar_respuesta_ia(texto_raw):
     """
-    Elimina cualquier análisis técnico o en inglés y extrae únicamente las sugerencias útiles.
+    Limpia cualquier rastro de pensamiento en inglés o formato técnico.
     """
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
     lineas = texto.split('\n')
     lineas_filtradas = []
     
-    palabras_basura = ["analyze", "user input", "identify", "constraints", "language:", "style:", "first message", "second message"]
+    palabras_basura = ["analyze", "user input", "identify", "constraints", "language:", "style:", "first message"]
     
     for l in lineas:
         linea_str = l.strip()
-        if not linea_str:
+        if not linea_str or any(p in linea_str.lower() for p in palabras_basura):
             continue
-        if any(p in linea_str.lower() for p in palabras_basura):
-            continue
-        
         linea_limpia = re.sub(r'\*\*', '', linea_str)
         lineas_filtradas.append(linea_limpia)
 
@@ -75,14 +46,13 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spark IA - Tu Asistente de Conquista</title>
-    <script src="https://unpkg.com/tesseract.js@v5.0.5/dist/tesseract.min.js"></script>
     <style>
         body { background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; margin: 0; }
         .container { max-width: 500px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 20px; }
         h2 { color: #bb86fc; margin-bottom: 5px; }
         .subtitle { color: #888; font-size: 14px; margin-bottom: 20px; }
         .upload-area { border: 2px dashed #888; border-radius: 15px; padding: 20px; cursor: pointer; background: #252525; margin-bottom: 15px; }
-        #preview-img { max-width: 100%; max-height: 250px; border-radius: 10px; margin-top: 10px; display: none; }
+        #preview-img { max-width: 100%; max-height: 200px; border-radius: 10px; margin-top: 10px; display: none; }
         textarea { width: 90%; height: 70px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 12px; padding: 12px; resize: none; margin-bottom: 15px; font-size: 14px;}
         
         .grid-botones { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
@@ -97,19 +67,17 @@ HTML_TEMPLATE = """
         
         #res { background: #2a2a2a; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 15px; border-left: 5px solid #00D4FF; min-height: 50px; font-size: 14px; line-height: 1.5; }
         .loading { color: #888; font-style: italic; }
-        #status-ocr { font-size: 12px; color: #00c6ff; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v6.6</div>
+        <div class="subtitle">Asistente de Conquista v7.0 (Server Vision)</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
             <input type="file" id="file-input" accept="image/*" onchange="cargarImagen(event)" style="display:none;">
             <img id="preview-img">
-            <div id="status-ocr">🔍 Leyendo imagen...</div>
         </div>
         
         <textarea id="texto-adicional" placeholder="Escribe aquí lo que dijo o el contexto extra..."></textarea>
@@ -130,33 +98,16 @@ HTML_TEMPLATE = """
 
     <script>
         let imagenBase64 = null;
-        let textoExtraidoOCR = "";
 
-        async function cargarImagen(event) {
+        function cargarImagen(event) {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = async function(e) {
+                reader.onload = function(e) {
                     imagenBase64 = e.target.result;
                     document.getElementById('preview-img').src = imagenBase64;
                     document.getElementById('preview-img').style.display = 'block';
                     document.getElementById('upload-text').style.display = 'none';
-                    
-                    const status = document.getElementById('status-ocr');
-                    status.style.display = 'block';
-                    status.innerText = "🔍 Procesando imagen...";
-                    
-                    try {
-                        if (typeof Tesseract !== 'undefined') {
-                            const result = await Tesseract.recognize(imagenBase64, 'spa');
-                            textoExtraidoOCR = result.data.text.trim();
-                            status.innerText = "✅ Captura leída correctamente";
-                        } else {
-                            status.innerText = "⚠️ Tesseract no disponible. Escribe abajo.";
-                        }
-                    } catch (err) {
-                        status.innerText = "⚠️ No se pudo leer la imagen. Escribe el contexto abajo.";
-                    }
                 };
                 reader.readAsDataURL(file);
             }
@@ -164,11 +115,9 @@ HTML_TEMPLATE = """
 
         function limpiarTodo() {
             imagenBase64 = null;
-            textoExtraidoOCR = "";
             document.getElementById('file-input').value = "";
             document.getElementById('preview-img').style.display = 'none';
             document.getElementById('upload-text').style.display = 'block';
-            document.getElementById('status-ocr').style.display = 'none';
             document.getElementById('texto-adicional').value = "";
             document.getElementById('res').innerText = "Sube una captura o escribe contexto y elige un estilo.";
         }
@@ -176,26 +125,29 @@ HTML_TEMPLATE = """
         async function generarRespuesta(modo) {
             const resDiv = document.getElementById('res');
             const textoManual = document.getElementById('texto-adicional').value;
-            const contextoFinal = (textoExtraidoOCR + "\n" + textoManual).trim();
             
-            if (!contextoFinal && modo !== 'Iniciar Conversación') {
-                resDiv.innerText = "⚠️ Por favor, escribe un contexto en el cuadro de texto o sube una captura.";
+            if (!imagenBase64 && !textoManual && modo !== 'Iniciar Conversación') {
+                resDiv.innerText = "⚠️ Por favor, escribe un mensaje o suba una imagen.";
                 return;
             }
             
-            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Analizando y generando respuestas...</span>';
             
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contexto: contextoFinal, modo: modo })
+                    body: JSON.stringify({ 
+                        imagen: imagenBase64, 
+                        texto: textoManual, 
+                        modo: modo 
+                    })
                 });
                 const data = await response.json();
                 if (data.respuesta) { 
                     resDiv.innerText = data.respuesta; 
                 } else { 
-                    resDiv.innerText = "❌ Error: " + (data.error || "Desconocido"); 
+                    resDiv.innerText = "❌ Error: " + (data.error || "No se pudo procesar"); 
                 }
             } catch (err) { 
                 resDiv.innerText = "❌ Error de conexión con el servidor."; 
@@ -213,54 +165,66 @@ def home():
 @app.route('/procesar', methods=['POST'])
 def procesar():
     data = request.json or {}
-    contexto = data.get('contexto', '')
+    imagen_b64 = data.get('imagen')
+    texto_manual = data.get('texto', '')
     modo = data.get('modo', 'Coqueto')
 
     key_actual = os.environ.get("GROQ_API_KEY", "").strip()
-
     if not key_actual:
         return jsonify({'error': 'Falta la variable GROQ_API_KEY en Render.'}), 500
 
-    modelo_elegido = obtener_modelo_chat_activo(key_actual)
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {key_actual}"
+    }
 
-    prompt_usuario = f"""Genera 3 respuestas cortas en Español Latino para enviar por mensaje de texto.
-Estilo deseado: {modo.upper()}
+    # Si hay imagen, usamos el modelo de Visión de Groq
+    if imagen_b64:
+        modelo = "llama-3.2-11b-vision-preview"
+        content_payload = [
+            {
+                "type": "text",
+                "text": f"Analiza la captura de pantalla de este chat. Genera 3 sugerencias de respuesta en Español Latino con un estilo {modo.upper()}. Agrega este contexto adicional si existe: '{texto_manual}'."
+            },
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": imagen_b64
+                }
+            }
+        ]
+    else:
+        # Si solo hay texto, usamos Llama 3.3 textil estándar
+        modelo = "llama-3.3-70b-versatile"
+        content_payload = f"Genera 3 respuestas cortas en Español Latino para enviar por chat. Estilo: {modo.upper()}. Contexto del chat: '{texto_manual}'."
 
-Contexto de la conversación:
-{contexto}"""
+    body = {
+        "model": modelo,
+        "messages": [
+            {
+                "role": "system",
+                "content": "Eres un asistente de seducción experto. Tu única tarea es devolver 3 opciones de respuesta breves y listas para enviar en español latino. Jamás incluyas análisis en inglés, introducciones ni explicaciones."
+            },
+            {
+                "role": "user",
+                "content": content_payload
+            }
+        ],
+        "temperature": 0.7,
+        "max_tokens": 250
+    }
 
     try:
-        resp = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {key_actual}"
-            },
-            json={
-                "model": modelo_elegido,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "Eres un asistente de seducción y conversación. Tu única tarea es dar 3 opciones de respuesta breves en español latino. No agregues analisis en ingles, razonamientos ni explicaciones adicionales."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt_usuario
-                    }
-                ],
-                "temperature": 0.7,
-                "max_tokens": 200
-            },
-            timeout=15
-        )
+        resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body, timeout=20)
         res_json = resp.json()
+        
         if resp.status_code == 200 and "choices" in res_json:
             raw_text = res_json["choices"][0]["message"]["content"]
             texto_final = procesar_respuesta_ia(raw_text)
             return jsonify({'respuesta': texto_final})
         else:
             msg_error = res_json.get("error", {}).get("message", "Error de comunicación")
-            return jsonify({'error': f"Groq ({modelo_elegido}): {msg_error}"}), 500
+            return jsonify({'error': f"Groq Error: {msg_error}"}), 500
     except Exception as e:
         return jsonify({'error': f"Excepción al procesar: {str(e)}"}), 500
 
