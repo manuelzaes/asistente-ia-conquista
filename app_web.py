@@ -5,7 +5,6 @@ import threading
 import time
 import requests
 from flask import Flask, render_template_string, request, jsonify
-from groq import Groq
 
 app = Flask(__name__)
 
@@ -84,7 +83,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v8.5</div>
+        <div class="subtitle">Asistente de Conquista v9.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -197,22 +196,45 @@ def procesar():
         f"Regla: Entrega únicamente las 3 opciones numeradas del 1 al 3 en español latino. Variación: {semilla}."
     )
 
-    try:
-        client = Groq(api_key=api_key)
-        completion = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
+    # Lista de modelos Groq en orden de prioridad para respaldo automático
+    modelos_groq = [
+        "llama3-8b-8192",
+        "llama3-70b-8192",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it"
+    ]
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    ultimo_error = ""
+    for modelo in modelos_groq:
+        payload = {
+            "model": modelo,
+            "messages": [
                 {"role": "system", "content": "Eres un asistente experto en respuestas inteligentes de chat y seducción."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.85,
-            max_tokens=250
-        )
-        raw_text = completion.choices[0].message.content
-        texto_final = procesar_respuesta_ia(raw_text, modo)
-        return jsonify({'respuesta': texto_final})
-    except Exception as e:
-        return jsonify({'error': f'Error en API: {str(e)}'}), 500
+            "temperature": 0.85,
+            "max_tokens": 250
+        }
+
+        try:
+            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=10)
+            res_json = resp.json()
+
+            if resp.status_code == 200 and "choices" in res_json:
+                raw_text = res_json["choices"][0]["message"]["content"]
+                texto_final = procesar_respuesta_ia(raw_text, modo)
+                return jsonify({'respuesta': texto_final})
+            else:
+                ultimo_error = res_json.get('error', {}).get('message', str(res_json))
+        except Exception as ex:
+            ultimo_error = str(ex)
+
+    return jsonify({'error': f"Todos los modelos fallaron. Último error: {ultimo_error}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
