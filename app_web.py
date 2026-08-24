@@ -18,47 +18,6 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
-def generar_respuestas_fallback(contexto, modo):
-    """Genera respuestas dinámicas cuando la API externa falla para evitar errores en pantalla."""
-    ctx = f" sobre '{contexto}'" if contexto else ""
-    
-    banco = {
-        "Iniciar Conversación": [
-            f"¡Hola! Estaba viendo esto y me acordé de ti{ctx}, ¿cómo va tu día?",
-            f"Oye, qué curiosos tus últimos estados... ¿siempre eres así de impredecible? 😏",
-            f"Una pregunta seria: ¿qué plan hay para hoy o todo es secreto?"
-        ],
-        "Romántico": [
-            f"Qué lindo saber de ti, de verdad me alegraste el momento. ✨",
-            f"Justo estaba pensando en ti{ctx}, qué bonita coincidencia.",
-            f"Espero que estés teniendo un día tan increíble como tú."
-        ],
-        "Coqueto": [
-            f"Mmm esa respuesta suena sospechosa... ¿me estás coqueteando o me lo pareció? 😏",
-            f"Cuidado con lo que dices{ctx}, que después me acostumbro a hablar contigo.",
-            f"Me gusta cómo piensas, pero no te voy a hacer la vida tan fácil."
-        ],
-        "Picante": [
-            f"No me provoques{ctx}, que luego no te vas a saber defender. 🔥",
-            f"Te ves muy confiado/a... me gusta eso, a ver si sostienes la mirada igual en persona.",
-            f"Esa conversación se está poniendo peligrosa y no me estoy quejando."
-        ],
-        "Provocativo": [
-            f"Dices eso aquí, pero dudo que te atrevas a decírmelo de frente. 👀",
-            f"A ver... ¿eso es un reto o solo estás midiendo mi paciencia?",
-            f"Pensé que tenías mejores argumentos{ctx}, me vas a tener que convencer mejor."
-        ],
-        "Salvar el Momento": [
-            f"Jajaja oye, ¿te quedaste sin señal o te dio miedo responder? 😂",
-            f"Bueno, como te quedaste en silencio asumo que gané el debate.",
-            f"Cambiemos de tema rápido antes de que esto se ponga más raro..."
-        ]
-    }
-    
-    opciones = banco.get(modo, banco["Coqueto"])
-    header = f"📌 Respuestas estilo {modo.upper()}:\n\n"
-    return header + f"1. {opciones[0]}\n\n2. {opciones[1]}\n\n3. {opciones[2]}"
-
 def procesar_respuesta_ia(texto_raw, modo):
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
     if '<think>' in texto:
@@ -124,7 +83,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v10.0</div>
+        <div class="subtitle">Asistente de Conquista v11.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -178,7 +137,7 @@ HTML_TEMPLATE = """
             const resDiv = document.getElementById('res');
             const textoManual = document.getElementById('texto-adicional').value;
             
-            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas ' + modo.toLowerCase() + 's...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Analizando chat y generando opciones ' + modo.toLowerCase() + 's...</span>';
             
             try {
                 const response = await fetch('/procesar', {
@@ -194,7 +153,7 @@ HTML_TEMPLATE = """
                 if (data.respuesta) { 
                     resDiv.innerText = data.respuesta; 
                 } else { 
-                    resDiv.innerText = "❌ Error al procesar la solicitud."; 
+                    resDiv.innerText = "❌ " + (data.error || "Error al procesar la solicitud."); 
                 }
             } catch (err) { 
                 resDiv.innerText = "❌ Error de conexión con el servidor."; 
@@ -212,70 +171,76 @@ def home():
 @app.route('/procesar', methods=['POST'])
 def procesar():
     data = request.json or {}
+    imagen_b64 = data.get('imagen')
     texto_manual = data.get('texto', '')
     modo = data.get('modo', 'Coqueto')
 
     api_key = os.environ.get("GROQ_API_KEY", "").strip()
 
+    if not api_key:
+        return jsonify({'error': 'Falta configurar la GROQ_API_KEY en las variables de entorno de Render.'})
+
     guia_estilo = {
-        "Iniciar Conversación": "Rompehielos original, fluido e ingenioso para abrir conversación.",
-        "Romántico": "Cálido, tierno, expresivo y detallista sin sonar cursi.",
-        "Coqueto": "Divertido, juguetón, con chispa y picardía ligera.",
+        "Iniciar Conversación": "Rompehielos original, fluido e ingenioso para abrir conversación basándote en la última frase o imagen.",
+        "Romántico": "Cálido, tierno, expresivo y detallista adaptado al contexto del chat.",
+        "Coqueto": "Divertido, juguetón, con chispa y picardía ligera respondiendo a lo que dijo.",
         "Picante": "Atrevido, audaz, con tensión y coquetería directa.",
         "Provocativo": "Desafiante, misterioso, que obligue a responder.",
-        "Salvar el Momento": "Ingenioso y desenfadado para revivir un chat apagado."
+        "Salvar el Momento": "Ingenioso y desenfadado para revivir o girar la conversación si se enfriaba."
     }
 
     estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
-    semilla = random.randint(100, 999)
-
-    prompt = (
-        f"Contexto: '{texto_manual}'. Genera exactamente 3 opciones de respuesta en estilo {modo.upper()}.\n"
+    
+    prompt_texto = (
+        f"Analiza la última conversación / mensaje recibido. Contexto o mensaje adicional: '{texto_manual}'.\n"
+        f"Genera exactamente 3 opciones de respuesta en estilo {modo.upper()}.\n"
         f"Enfoque del tono: {estilo_instruccion}\n"
-        f"Regla: Entrega únicamente las 3 opciones numeradas del 1 al 3 en español latino. Variación: {semilla}."
+        f"REGLA OBLIGATORIA: Las respuestas DEBEN ser personalizadas al contenido exacto que dijo la otra persona en la conversación/captura. Entrega únicamente las 3 opciones numeradas del 1 al 3 en español latino."
     )
-
-    # Modelos 100% vigentes en Groq actualmente
-    modelos_groq = [
-        "llama-3.1-8b-instant",
-        "llama-3.2-11b-vision-preview",
-        "llama-3.2-3b-preview",
-        "llama-3.2-1b-preview",
-        "llama3-70b-8192"
-    ]
 
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
 
-    if api_key:
-        for modelo in modelos_groq:
-            payload = {
-                "model": modelo,
-                "messages": [
-                    {"role": "system", "content": "Eres un asistente experto en respuestas inteligentes de chat y seducción."},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.85,
-                "max_tokens": 250
-            }
+    # Si el usuario subió captura de pantalla, usamos modelo con Visión
+    if imagen_b64:
+        content_user = [
+            {"type": "text", "text": prompt_texto},
+            {"type": "image_url", "image_url": {"url": imagen_b64}}
+        ]
+        modelos_evaluar = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
+    else:
+        content_user = prompt_texto
+        modelos_evaluar = ["llama-3.1-8b-instant", "llama3-70b-8192"]
 
-            try:
-                resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=8)
-                res_json = resp.json()
+    for modelo in modelos_evaluar:
+        payload = {
+            "model": modelo,
+            "messages": [
+                {"role": "system", "content": "Eres un asistente experto en analizar conversaciones de chat y generar respuestas hiper-personalizadas y atractivas."},
+                {"role": "user", "content": content_user}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 350
+        }
 
-                if resp.status_code == 200 and "choices" in res_json:
-                    raw_text = res_json["choices"][0]["message"]["content"]
-                    texto_final = procesar_respuesta_ia(raw_text, modo)
-                    if texto_final:
-                        return jsonify({'respuesta': texto_final})
-            except Exception:
-                continue
+        try:
+            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=12)
+            res_json = resp.json()
 
-    # Fallback garantizado si todas las llamadas a API fallan o la API Key no está lista
-    respuesta_respaldo = generar_respuestas_fallback(texto_manual, modo)
-    return jsonify({'respuesta': respuesta_respaldo})
+            if resp.status_code == 200 and "choices" in res_json:
+                raw_text = res_json["choices"][0]["message"]["content"]
+                texto_final = procesar_respuesta_ia(raw_text, modo)
+                if texto_final:
+                    return jsonify({'respuesta': texto_final})
+            elif "error" in res_json:
+                print(f"Error en {modelo}: {res_json['error']}")
+        except Exception as e:
+            print(f"Excepción en request: {e}")
+            continue
+
+    return jsonify({'error': 'No se pudo generar respuesta de IA. Verifica tu GROQ_API_KEY en Render.'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
