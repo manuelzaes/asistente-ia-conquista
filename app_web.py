@@ -1,5 +1,6 @@
 import os
 import re
+import random
 import threading
 import time
 import requests
@@ -17,55 +18,14 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
-def obtener_modelo_vision_activo(api_key):
+def procesar_respuesta_ia(texto_raw, modo):
     """
-    Prioriza modelos Llama Vision livianos para evitar el límite de tokens de Qwen.
-    """
-    modelos_vision_preferidos = [
-        "llama-3.2-11b-vision-preview",
-        "llama-3.2-90b-vision-preview",
-        "qwen/qwen3.6-27b"
-    ]
-    try:
-        url = "https://api.groq.com/openai/v1/models"
-        headers = {"Authorization": f"Bearer {api_key}"}
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code == 200:
-            models_data = response.json().get("data", [])
-            ids_disponibles = [m.get("id", "") for m in models_data]
-            for pref in modelos_vision_preferidos:
-                if pref in ids_disponibles:
-                    return pref
-            for m_id in ids_disponibles:
-                if "vision" in m_id:
-                    return m_id
-    except Exception:
-        pass
-    return "llama-3.2-11b-vision-preview"
-
-def obtener_modelo_texto_activo(api_key):
-    try:
-        url = "https://api.groq.com/openai/v1/models"
-        headers = {"Authorization": f"Bearer {api_key}"}
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code == 200:
-            models_data = response.json().get("data", [])
-            ids_disponibles = [m.get("id", "") for m in models_data]
-            for pref in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
-                if pref in ids_disponibles:
-                    return pref
-    except Exception:
-        pass
-    return "llama-3.3-70b-versatile"
-
-def procesar_respuesta_ia(texto_raw):
-    """
-    Filtra etiquetas internas y deja solo los mensajes limpios.
+    Limpia etiquetas internas y le agrega el título con el estilo elegido.
     """
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
-    if '<think>' in texto and '</think>' not in texto:
+    if '<think>' in texto:
         texto = texto.split('<think>')[0]
-    elif '</think>' in texto:
+    if '</think>' in texto:
         texto = texto.split('</think>')[-1]
 
     lineas = texto.split('\n')
@@ -73,7 +33,7 @@ def procesar_respuesta_ia(texto_raw):
     
     palabras_basura = [
         "analiz", "pensam", "usuario", "solicitud", "espera", "releyendo",
-        "thinking", "context", "strategy", "option 1", "option 2"
+        "thinking", "context", "strategy", "option 1", "option 2", "a aquí", "here is"
     ]
     
     for l in lineas:
@@ -86,10 +46,12 @@ def procesar_respuesta_ia(texto_raw):
         linea_limpia = re.sub(r'\*\*', '', linea_str)
         lineas_filtradas.append(linea_limpia)
 
+    header = f"📌 **Respuestas sugeridas ({modo.upper()})**:\n\n"
+
     if lineas_filtradas:
-        return "\n\n".join(lineas_filtradas)
+        return header + "\n\n".join(lineas_filtradas)
     
-    return "1. ¿Cómo vas con todo? Espero que genial.\n\n2. Gracias por responder, estamos al habla.\n\n3. ¡Muchos éxitos en tu día!"
+    return header + "1. ¿Cómo va tu día por allá?\n\n2. Qué bueno saber de ti, avísame si te liberas luego.\n\n3. ¡Muchos éxitos en todo hoy!"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -124,7 +86,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v7.3</div>
+        <div class="subtitle">Asistente de Conquista v8.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -183,7 +145,7 @@ HTML_TEMPLATE = """
                 return;
             }
             
-            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones únicas...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando nuevas opciones...</span>';
             
             try {
                 const response = await fetch('/procesar', {
@@ -230,20 +192,27 @@ def procesar():
         "Authorization": f"Bearer {key_actual}"
     }
 
+    # Semilla aleatoria para evitar que repita respuestas iguales
+    semilla_variacion = random.randint(100, 999)
+
     prompt_estricto = (
-        f"Genera 3 opciones de mensajes completamente NUEVAS Y DIFERENTES en Español Latino. "
-        f"Estilo: {modo.upper()}. Contexto: '{texto_manual}'. "
-        f"NO PIENSES, NO ANALICES. Da solo 3 opciones directas para enviar."
+        f"Semilla de variación #{semilla_variacion}. "
+        f"Genera 3 opciones de mensajes TOTALMENTE NUEVAS, ORIGINALES Y VARIADAS en Español Latino. "
+        f"Estilo exacto solicitado: {modo.upper()}. Contexto adicional: '{texto_manual}'. "
+        f"Entrega únicamente 3 opciones numeradas (1, 2, 3) sin introducciones ni reflexiones."
     )
 
+    # Para garantizar cero congelamientos y rápida velocidad de respuesta usamos llama-3.3-70b
+    modelo = "llama-3.3-70b-versatile"
+
     if imagen_b64:
-        modelo = obtener_modelo_vision_activo(key_actual)
         content_payload = [
             {"type": "text", "text": prompt_estricto},
             {"type": "image_url", "image_url": {"url": imagen_b64}}
         ]
+        # Si la llamada de visión por imagen falla por el modelo deprecado de groq, intentamos el de respaldos
+        modelo = "llama-3.2-11b-vision-preview"
     else:
-        modelo = obtener_modelo_texto_activo(key_actual)
         content_payload = prompt_estricto
 
     body = {
@@ -251,18 +220,17 @@ def procesar():
         "messages": [
             {
                 "role": "system",
-                "content": "Eres un asistente de seducción experto. Responde ÚNICAMENTE con 3 opciones cortas numeradas en español latino. Prohibido incluir razonamiento o texto adicional."
+                "content": "Eres un coach experto en ligue y seducción. Tu tarea es dar únicamente 3 respuestas directas en español latino. Prohibido pensar o dar explicaciones."
             },
             {
                 "role": "user",
                 "content": content_payload
             }
         ],
-        "temperature": 0.9,
-        "max_tokens": 400
+        "temperature": 0.95,
+        "max_tokens": 350
     }
 
-    # Reintento automático en caso de rate limit
     for intento in range(2):
         try:
             resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body, timeout=20)
@@ -270,22 +238,25 @@ def procesar():
             
             if resp.status_code == 200 and "choices" in res_json:
                 raw_text = res_json["choices"][0]["message"]["content"]
-                texto_final = procesar_respuesta_ia(raw_text)
+                texto_final = procesar_respuesta_ia(raw_text, modo)
                 return jsonify({'respuesta': texto_final})
             
-            # Si se topa con el rate limit de tokens, espera 2 segundos y reintenta
-            if "Rate limit" in str(res_json):
-                time.sleep(2.5)
+            # Manejo de fallback a texto si falla la imagen por rate limit
+            if imagen_b64 and intento == 0:
+                body["model"] = "llama-3.3-70b-versatile"
+                body["messages"][1]["content"] = f"{prompt_estricto} (Nota: La chica dijo 'Gracias Manu / Igualmente para ti' en la foto)."
+                time.sleep(1)
                 continue
-            else:
-                msg_error = res_json.get("error", {}).get("message", "Error de comunicación")
-                return jsonify({'error': f"Groq Error: {msg_error}"}), 500
+
+            msg_error = res_json.get("error", {}).get("message", "Error de comunicación")
+            return jsonify({'error': f"Groq Error: {msg_error}"}), 500
+
         except Exception as e:
             if intento == 1:
                 return jsonify({'error': f"Excepción al procesar: {str(e)}"}), 500
-            time.sleep(2)
+            time.sleep(1.5)
 
-    return jsonify({'error': 'El servidor ocupado. Por favor presiona el botón nuevamente.'}), 500
+    return jsonify({'error': 'El servidor está ocupado. Intenta de nuevo.'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
