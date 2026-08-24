@@ -20,7 +20,7 @@ threading.Thread(target=keep_alive, daemon=True).start()
 
 def procesar_respuesta_ia(texto_raw, modo):
     """
-    Limpia etiquetas de pensamiento interno y añade encabezado formateado.
+    Limpia etiquetas de razonamiento interno y agrega el título del estilo.
     """
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
     if '<think>' in texto:
@@ -86,7 +86,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v8.2</div>
+        <div class="subtitle">Asistente de Conquista v8.3</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -191,22 +191,32 @@ def procesar():
         "Authorization": f"Bearer {key_actual}"
     }
 
+    # Definición precisa de las proporciones/tonos según el botón
+    guia_estilo = {
+        "Iniciar Conversación": "Abridor rompehielos original, entretenido y fácil de responder.",
+        "Romántico": "Cálido, tierno, expresivo y detallista sin sonar cursi o exagerado.",
+        "Coqueto": "Divertido, juguetón, con chispa, tono coqueto y encanto sutil.",
+        "Picante": "Atrevido, audaz, con tensión sexual moderada, sugerista y directo.",
+        "Provocativo": "Desafiante, misterioso, que deje picada a la persona y la obligue a responder.",
+        "Salvar el Momento": "Ingenioso, desenfadado para reactivar una charla fría o vista sin responder."
+    }
+
+    estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
     semilla_variacion = random.randint(1000, 9999)
 
     prompt_estricto = (
         f"[Variación #{semilla_variacion}] "
-        f"Genera 3 respuestas breves, naturales y creativas en Español Latino. "
-        f"ESTILO REQUERIDO: {modo.upper()}. "
-        f"Contexto o texto del chat: '{texto_manual}'. "
-        f"Responde únicamente con 3 opciones listas para enviar, una por línea numerada del 1 al 3."
+        f"Contexto o mensaje recibido: '{texto_manual}'. "
+        f"Tu objetivo es dar 3 opciones de respuesta exactamente en tono {modo.upper()}. "
+        f"Guía de tono para este estilo: {estilo_instruccion} "
+        f"Usa lenguaje natural de chat en Español Latino. "
+        f"Regla de formato: Entrega SOLO las 3 opciones numeradas del 1 al 3. Cero texto extra."
     )
 
-    # Modelos oficiales activos en la infraestructura de Groq
     modelos_a_probar = [
-        "openai/gpt-oss-20b",
-        "openai/gpt-oss-120b",
+        "llama-3.1-8b-instant",
         "qwen/qwen3.6-27b",
-        "llama-3.1-8b-instant"
+        "openai/gpt-oss-20b"
     ]
 
     for mod in modelos_a_probar:
@@ -215,19 +225,19 @@ def procesar():
             "messages": [
                 {
                     "role": "system",
-                    "content": "Eres un asistente de conquista rápida. Entregas exactamente 3 respuestas cortas numeradas en español latino."
+                    "content": f"Eres un experto en seducción y dinámica de chats. Tu especialidad es adaptar la tensión del mensaje exacto al tono {modo}."
                 },
                 {
                     "role": "user",
                     "content": prompt_estricto
                 }
             ],
-            "temperature": 0.85,
-            "max_tokens": 200
+            "temperature": 0.9,
+            "max_tokens": 250
         }
 
         try:
-            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body, timeout=20)
+            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body, timeout=15)
             res_json = resp.json()
 
             if resp.status_code == 200 and "choices" in res_json:
@@ -237,7 +247,7 @@ def procesar():
         except Exception:
             continue
 
-    return jsonify({'error': 'No se pudo conectar a los servidores de IA en este momento. Revisa la clave API en Render o reintenta.'}), 500
+    return jsonify({'error': 'No se pudo generar la respuesta. Presiona el botón nuevamente.'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
