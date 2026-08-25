@@ -82,7 +82,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v13.0</div>
+        <div class="subtitle">Asistente de Conquista v14.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -136,7 +136,7 @@ HTML_TEMPLATE = """
             const resDiv = document.getElementById('res');
             const textoManual = document.getElementById('texto-adicional').value;
             
-            resDiv.innerHTML = '<span class="loading">🤔 Analizando y generando respuestas ' + modo.toLowerCase() + 's...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones ' + modo.toLowerCase() + 's...</span>';
             
             try {
                 const response = await fetch('/procesar', {
@@ -193,7 +193,7 @@ def procesar():
         f"Contexto o mensaje recibido: '{texto_manual if texto_manual else 'Mensaje entrante de conversación'}'.\n"
         f"Genera exactamente 3 opciones de respuesta distintas e ingeniosas en estilo {modo.upper()}.\n"
         f"Enfoque del tono: {estilo_instruccion}\n"
-        f"REGLA: Adapta las respuestas específicamente al contexto recibido. Responde únicamente con las 3 opciones numeradas del 1 al 3 en español latino, sin comentarios adicionales."
+        f"REGLA: Adapta las respuestas específicamente al contexto recibido. Responde únicamente con las 3 opciones numeradas del 1 al 3 en español latino, sin comentarios adicionales ni explicaciones."
     )
 
     headers = {
@@ -201,7 +201,8 @@ def procesar():
         "Content-Type": "application/json"
     }
 
-    modelos_evaluar = ["llama-3.1-8b-instant", "llama3-70b-8192"]
+    # Modelos actualizados y soporte activo en Groq
+    modelos_evaluar = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
     ultimo_error = ""
 
     for modelo in modelos_evaluar:
