@@ -72,7 +72,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v16.0</div>
+        <div class="subtitle">Asistente de Conquista v16.1</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -178,7 +178,6 @@ def procesar():
     }
 
     estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
-    
     contexto_evaluado = texto_manual if texto_manual else "Hola, ¿cómo estás?"
 
     prompt_texto = (
@@ -193,31 +192,41 @@ def procesar():
         "Content-Type": "application/json"
     }
 
-    payload = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {"role": "system", "content": "Eres un experto en seducción, carisma y conversación que improvisa opciones dinámicas e inéditas cada vez que le piden una respuesta."},
-            {"role": "user", "content": prompt_texto}
-        ],
-        "temperature": 0.95,
-        "max_tokens": 400
-    }
+    # Lista de modelos compatibles en orden de prioridad
+    modelos = [
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "qwen/qwen3.6-27b",
+        "llama-3.3-70b-versatile"
+    ]
 
-    try:
-        resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=12)
-        res_json = resp.json()
+    ultimo_error = ""
 
-        if resp.status_code == 200 and "choices" in res_json:
-            raw_text = res_json["choices"][0]["message"]["content"]
-            texto_final = limpiar_respuesta(raw_text, modo)
-            return jsonify({'respuesta': texto_final})
-        elif "error" in res_json:
-            msg_err = res_json["error"].get("message", "Error en Groq API")
-            return jsonify({'error': f"Groq API Error: {msg_err}"})
-    except Exception as e:
-        return jsonify({'error': f"Error de conexión: {str(e)}"})
+    for modelo in modelos:
+        payload = {
+            "model": modelo,
+            "messages": [
+                {"role": "system", "content": "Eres un experto en seducción, carisma y conversación que improvisa opciones dinámicas e inéditas cada vez que le piden una respuesta."},
+                {"role": "user", "content": prompt_texto}
+            ],
+            "temperature": 0.95,
+            "max_tokens": 400
+        }
 
-    return jsonify({'error': 'No se pudo generar respuesta. Revisa tu GROQ_API_KEY.'})
+        try:
+            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=12)
+            res_json = resp.json()
+
+            if resp.status_code == 200 and "choices" in res_json:
+                raw_text = res_json["choices"][0]["message"]["content"]
+                texto_final = limpiar_respuesta(raw_text, modo)
+                return jsonify({'respuesta': texto_final})
+            elif "error" in res_json:
+                ultimo_error = res_json["error"].get("message", "Error desconocido")
+        except Exception as e:
+            ultimo_error = str(e)
+
+    return jsonify({'error': f"Groq API Error: {ultimo_error}"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
