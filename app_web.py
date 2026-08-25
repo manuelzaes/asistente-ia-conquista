@@ -1,6 +1,5 @@
 import os
 import re
-import random
 import threading
 import time
 import requests
@@ -18,81 +17,27 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
-def generar_respuestas_locales(texto, modo):
-    msg = texto.strip() if texto else "tu último mensaje"
-    
-    plantillas = {
-        "Iniciar Conversación": [
-            f"Oye, estuve viendo lo que pusiste sobre '{msg}' y me pareció bastante curioso, ¿siempre eres así de directo? 😏",
-            f"No iba a responderte, pero me dio intriga lo de '{msg}'. A ver, cuéntame bien la historia...",
-            f"Justo estaba pensando en algo parecido a '{msg}'. Me parece que tenemos más en común de lo que crees 😉"
-        ],
-        "Romántico": [
-            f"Me encantó lo que dijiste ('{msg}'). Detallitos así se valoran un montón hoy en día ✨",
-            f"No te voy a mentir, leer eso de '{msg}' me sacó una sonrisa espontánea. Tienes un encanto especial.",
-            f"Hay algo en la forma en que dices '{msg}' que me transmite muchísima tranquilidad y linda energía."
-        ],
-        "Coqueto": [
-            f"Esa frase de '{msg}' tiene doble intención y lo sabes perfectamente... pero me gusta 😏",
-            f"Te ves muy seguro/a diciendo '{msg}'. Cuidado, que me puedo acostumbrar a ese juego 😉",
-            f"Si sigues respondiendo así con lo de '{msg}', voy a tener que cobrarte entrada para hablar conmigo 😂"
-        ],
-        "Picante": [
-            f"Eso de '{msg}' sonó bastante atrevido... no me provoques que no respondo de mí 🔥",
-            f"Me gusta esa actitud audaz con '{msg}'. A ver si en persona sostienes la misma mirada 😏",
-            f"Esa combinación entre lo que dijiste ('{msg}') y esa vibra tuya está volviendo las cosas peligrosas..."
-        ],
-        "Provocativo": [
-            f"Muchas palabras con '{msg}', pero a ver si de verdad te animas a demostrarlo... 😈",
-            f"Dice mucho de ti que menciones '{msg}'. ¿Te atreves a decirme eso mismo cara a cara?",
-            f"Interesante lo de '{msg}'... lástima que no cualquiera sabe cómo continuar ese tipo de plática 😉"
-        ],
-        "Salvar el Momento": [
-            f"Jajaja oye, dejando de lado lo de '{msg}', ¿siempre eres de responder así o te agarré en un momento inspirado? 😂",
-            f"Bueno, rompamos el hielo de nuevo antes de que esto de '{msg}' se ponga raro... ¿cuál es tu plan hoy? 🚀",
-            f"Iba a hacerme el/la interesante tras lo de '{msg}', pero la verdad prefiero preguntar: ¿sale un café o qué? 😉"
-        ]
-    }
-    
-    opciones = plantillas.get(modo, plantillas["Coqueto"])
-    
-    res = f"📌 Respuestas estilo {modo.upper()}:\n\n"
-    for i, op in enumerate(opciones, 1):
-        res += f"{i}. {op}\n\n"
-        
-    return res.strip()
-
-def procesar_respuesta_ia(texto_raw, modo):
+def limpiar_respuesta(texto_raw, modo):
     texto = re.sub(r'<think>.*?</think>', '', texto_raw, flags=re.DOTALL)
     if '<think>' in texto:
         texto = texto.split('<think>')[0]
     if '</think>' in texto:
         texto = texto.split('</think>')[-1]
 
-    lineas = texto.split('\n')
+    lineas = [l.strip() for l in texto.split('\n') if l.strip()]
     lineas_filtradas = []
     
-    palabras_basura = [
-        "analiz", "pensam", "usuario", "solicitud", "espera", "releyendo",
-        "thinking", "context", "strategy", "option 1", "option 2", "here is"
-    ]
+    palabras_basura = ["analiz", "pensam", "usuario", "solicitud", "espera", "thinking", "option"]
     
     for l in lineas:
-        linea_str = l.strip()
-        if not linea_str:
-            continue
-        if any(p in linea_str.lower() for p in palabras_basura):
-            continue
-        
-        linea_limpia = re.sub(r'\*\*', '', linea_str)
-        lineas_filtradas.append(linea_limpia)
+        if not any(p in l.lower() for p in palabras_basura):
+            linea_limpia = re.sub(r'\*\*', '', l)
+            lineas_filtradas.append(linea_limpia)
 
     header = f"📌 Respuestas estilo {modo.upper()}:\n\n"
-
     if lineas_filtradas:
         return header + "\n\n".join(lineas_filtradas)
-    
-    return None
+    return texto_raw
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -127,7 +72,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v15.0</div>
+        <div class="subtitle">Asistente de Conquista v16.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -181,7 +126,7 @@ HTML_TEMPLATE = """
             const resDiv = document.getElementById('res');
             const textoManual = document.getElementById('texto-adicional').value;
             
-            resDiv.innerHTML = '<span class="loading">🤔 Generando opciones ' + modo.toLowerCase() + 's...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas ' + modo.toLowerCase() + 's únicas...</span>';
             
             try {
                 const response = await fetch('/procesar', {
@@ -215,27 +160,32 @@ def home():
 @app.route('/procesar', methods=['POST'])
 def procesar():
     data = request.json or {}
-    texto_manual = data.get('texto', '')
+    texto_manual = data.get('texto', '').strip()
     modo = data.get('modo', 'Coqueto')
 
     api_key = os.environ.get("GROQ_API_KEY", "").strip()
 
+    if not api_key:
+        return jsonify({'error': 'Falta configurar la GROQ_API_KEY en Render.'})
+
     guia_estilo = {
-        "Iniciar Conversación": "Rompehielos original, ingenioso e impredecible para abrir conversación.",
-        "Romántico": "Cálido, tierno, expresivo y detallista.",
-        "Coqueto": "Divertido, juguetón y con picardía ligera.",
-        "Picante": "Atrevido, audaz y con coquetería directa.",
-        "Provocativo": "Desafiante y misterioso para motivar una respuesta.",
-        "Salvar el Momento": "Ingenioso para revivir la conversación si está fría."
+        "Iniciar Conversación": "Rompehielos original, ingenioso e impredecible para abrir conversación de forma fluida.",
+        "Romántico": "Cálido, tierno, expresivo, seguro de sí mismo y muy detallista.",
+        "Coqueto": "Divertido, juguetón, con humor fresco y picardía ligera.",
+        "Picante": "Atrevido, audaz, coqueto y directo sin rodeos.",
+        "Provocativo": "Desafiante, interesante y misterioso para obligar a responder.",
+        "Salvar el Momento": "Ingenioso y ameno para desentrampar la conversación si se enfrió."
     }
 
     estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
     
+    contexto_evaluado = texto_manual if texto_manual else "Hola, ¿cómo estás?"
+
     prompt_texto = (
-        f"Contexto o mensaje recibido: '{texto_manual if texto_manual else 'Mensaje entrante de conversación'}'.\n"
-        f"Genera exactamente 3 opciones de respuesta distintas e ingeniosas en estilo {modo.upper()}.\n"
+        f"Contexto o mensaje recibido del chat: '{contexto_evaluado}'.\n"
+        f"Genera exactamente 3 opciones de respuesta NUNCA antes vistas, totalmente improvisadas, variadas y originales en estilo {modo.upper()}.\n"
         f"Enfoque del tono: {estilo_instruccion}\n"
-        f"REGLA: Adapta las respuestas específicamente al contexto recibido. Responde únicamente con las 3 opciones numeradas del 1 al 3 en español latino, sin comentarios adicionales ni explicaciones."
+        f"REGLA OBLIGATORIA: Adapta las respuestas al mensaje o contexto exacto. Responde únicamente con las 3 opciones numeradas del 1 al 3 en español latino natural, sin introducción ni notas adicionales."
     )
 
     headers = {
@@ -243,36 +193,31 @@ def procesar():
         "Content-Type": "application/json"
     }
 
-    # Modelos activos y verificados en Groq API
-    modelos_evaluar = ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"]
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": "Eres un experto en seducción, carisma y conversación que improvisa opciones dinámicas e inéditas cada vez que le piden una respuesta."},
+            {"role": "user", "content": prompt_texto}
+        ],
+        "temperature": 0.95,
+        "max_tokens": 400
+    }
 
-    if api_key:
-        for modelo in modelos_evaluar:
-            payload = {
-                "model": modelo,
-                "messages": [
-                    {"role": "system", "content": "Eres un asistente experto en relaciones y conversación que genera opciones únicas e improvisadas según la instrucción recibida."},
-                    {"role": "user", "content": prompt_texto}
-                ],
-                "temperature": 0.85,
-                "max_tokens": 350
-            }
+    try:
+        resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=12)
+        res_json = resp.json()
 
-            try:
-                resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=8)
-                res_json = resp.json()
+        if resp.status_code == 200 and "choices" in res_json:
+            raw_text = res_json["choices"][0]["message"]["content"]
+            texto_final = limpiar_respuesta(raw_text, modo)
+            return jsonify({'respuesta': texto_final})
+        elif "error" in res_json:
+            msg_err = res_json["error"].get("message", "Error en Groq API")
+            return jsonify({'error': f"Groq API Error: {msg_err}"})
+    except Exception as e:
+        return jsonify({'error': f"Error de conexión: {str(e)}"})
 
-                if resp.status_code == 200 and "choices" in res_json:
-                    raw_text = res_json["choices"][0]["message"]["content"]
-                    texto_final = procesar_respuesta_ia(raw_text, modo)
-                    if texto_final:
-                        return jsonify({'respuesta': texto_final})
-            except Exception:
-                continue
-
-    # Si la API falla por cualquier razón, usamos el generador local de respaldo garantizado
-    respuesta_respaldo = generar_respuestas_locales(texto_manual, modo)
-    return jsonify({'respuesta': respuesta_respaldo})
+    return jsonify({'error': 'No se pudo generar respuesta. Revisa tu GROQ_API_KEY.'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
