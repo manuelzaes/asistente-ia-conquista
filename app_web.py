@@ -1,6 +1,5 @@
 import os
 import re
-import random
 import threading
 import time
 import requests
@@ -83,7 +82,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v11.0</div>
+        <div class="subtitle">Asistente de Conquista v13.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -137,7 +136,7 @@ HTML_TEMPLATE = """
             const resDiv = document.getElementById('res');
             const textoManual = document.getElementById('texto-adicional').value;
             
-            resDiv.innerHTML = '<span class="loading">🤔 Analizando chat y generando opciones ' + modo.toLowerCase() + 's...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Analizando y generando respuestas ' + modo.toLowerCase() + 's...</span>';
             
             try {
                 const response = await fetch('/procesar', {
@@ -171,31 +170,30 @@ def home():
 @app.route('/procesar', methods=['POST'])
 def procesar():
     data = request.json or {}
-    imagen_b64 = data.get('imagen')
     texto_manual = data.get('texto', '')
     modo = data.get('modo', 'Coqueto')
 
     api_key = os.environ.get("GROQ_API_KEY", "").strip()
 
     if not api_key:
-        return jsonify({'error': 'Falta configurar la GROQ_API_KEY en las variables de entorno de Render.'})
+        return jsonify({'error': 'Falta configurar la GROQ_API_KEY en Render.'})
 
     guia_estilo = {
-        "Iniciar Conversación": "Rompehielos original, fluido e ingenioso para abrir conversación basándote en la última frase o imagen.",
-        "Romántico": "Cálido, tierno, expresivo y detallista adaptado al contexto del chat.",
-        "Coqueto": "Divertido, juguetón, con chispa y picardía ligera respondiendo a lo que dijo.",
-        "Picante": "Atrevido, audaz, con tensión y coquetería directa.",
-        "Provocativo": "Desafiante, misterioso, que obligue a responder.",
-        "Salvar el Momento": "Ingenioso y desenfadado para revivir o girar la conversación si se enfriaba."
+        "Iniciar Conversación": "Rompehielos original, ingenioso e impredecible para abrir conversación.",
+        "Romántico": "Cálido, tierno, expresivo y detallista.",
+        "Coqueto": "Divertido, juguetón y con picardía ligera.",
+        "Picante": "Atrevido, audaz y con coquetería directa.",
+        "Provocativo": "Desafiante y misterioso para motivar una respuesta.",
+        "Salvar el Momento": "Ingenioso para revivir la conversación si está fría."
     }
 
     estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
     
     prompt_texto = (
-        f"Analiza la última conversación / mensaje recibido. Contexto o mensaje adicional: '{texto_manual}'.\n"
-        f"Genera exactamente 3 opciones de respuesta en estilo {modo.upper()}.\n"
+        f"Contexto o mensaje recibido: '{texto_manual if texto_manual else 'Mensaje entrante de conversación'}'.\n"
+        f"Genera exactamente 3 opciones de respuesta distintas e ingeniosas en estilo {modo.upper()}.\n"
         f"Enfoque del tono: {estilo_instruccion}\n"
-        f"REGLA OBLIGATORIA: Las respuestas DEBEN ser personalizadas al contenido exacto que dijo la otra persona en la conversación/captura. Entrega únicamente las 3 opciones numeradas del 1 al 3 en español latino."
+        f"REGLA: Adapta las respuestas específicamente al contexto recibido. Responde únicamente con las 3 opciones numeradas del 1 al 3 en español latino, sin comentarios adicionales."
     )
 
     headers = {
@@ -203,25 +201,17 @@ def procesar():
         "Content-Type": "application/json"
     }
 
-    # Si el usuario subió captura de pantalla, usamos modelo con Visión
-    if imagen_b64:
-        content_user = [
-            {"type": "text", "text": prompt_texto},
-            {"type": "image_url", "image_url": {"url": imagen_b64}}
-        ]
-        modelos_evaluar = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
-    else:
-        content_user = prompt_texto
-        modelos_evaluar = ["llama-3.1-8b-instant", "llama3-70b-8192"]
+    modelos_evaluar = ["llama-3.1-8b-instant", "llama3-70b-8192"]
+    ultimo_error = ""
 
     for modelo in modelos_evaluar:
         payload = {
             "model": modelo,
             "messages": [
-                {"role": "system", "content": "Eres un asistente experto en analizar conversaciones de chat y generar respuestas hiper-personalizadas y atractivas."},
-                {"role": "user", "content": content_user}
+                {"role": "system", "content": "Eres un asistente experto en relaciones y conversación que genera opciones únicas e improvisadas según la instrucción recibida."},
+                {"role": "user", "content": prompt_texto}
             ],
-            "temperature": 0.7,
+            "temperature": 0.85,
             "max_tokens": 350
         }
 
@@ -235,12 +225,12 @@ def procesar():
                 if texto_final:
                     return jsonify({'respuesta': texto_final})
             elif "error" in res_json:
-                print(f"Error en {modelo}: {res_json['error']}")
+                ultimo_error = res_json["error"].get("message", str(res_json["error"]))
         except Exception as e:
-            print(f"Excepción en request: {e}")
+            ultimo_error = str(e)
             continue
 
-    return jsonify({'error': 'No se pudo generar respuesta de IA. Verifica tu GROQ_API_KEY en Render.'})
+    return jsonify({'error': f'Detalle del servicio: {ultimo_error}' if ultimo_error else 'Error al conectar con la IA.'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
