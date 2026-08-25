@@ -39,6 +39,17 @@ def limpiar_respuesta(texto_raw, modo):
         return header + "\n\n".join(lineas_filtradas)
     return texto_raw
 
+def limpiar_basura_ocr(texto):
+    # Eliminar patrones de hora (ej: 5:15 p.m., 17:30, 9:25 p. m.)
+    texto = re.sub(r'\b\d{1,2}:\d{2}\s*(?:p\.?\s*m\.?|a\.?\s*m\.?)?\b', '', texto, flags=re.IGNORECASE)
+    # Eliminar estados de lectura o palabras del sistema
+    texto = re.sub(r'\b(visto|leído|enviado|online|en línea|whatsapp|hoy|ayer)\b', '', texto, flags=re.IGNORECASE)
+    # Eliminar números aislados o raros de la interfaz
+    texto = re.sub(r'\b\d+\b', '', texto)
+    # Limpiar espacios múltiples
+    texto = re.sub(r'\s+', ' ', texto).strip()
+    return texto
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="es">
@@ -73,7 +84,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v18.0</div>
+        <div class="subtitle">Asistente de Conquista v19.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -176,7 +187,7 @@ def home():
 @app.route('/procesar', methods=['POST'])
 def procesar():
     data = request.json or {}
-    texto_contexto = data.get('texto', '').strip()
+    texto_raw_contexto = data.get('texto', '').strip()
     modo = data.get('modo', 'Coqueto')
 
     api_key = os.environ.get("GROQ_API_KEY", "").strip()
@@ -184,27 +195,30 @@ def procesar():
     if not api_key:
         return jsonify({'error': 'Falta configurar la GROQ_API_KEY en Render.'})
 
+    texto_contexto = limpiar_basura_ocr(texto_raw_contexto)
+
     guia_estilo = {
         "Iniciar Conversación": "Rompehielos original e ingenioso para abrir conversación.",
-        "Romántico": "Cálido, tierno, cariñoso y expresivo. Responde a lo que la otra persona dijo sin saludar.",
-        "Coqueto": "Divertido, juguetón y con picardía ligera. Responde al último mensaje que envió la otra persona.",
-        "Picante": "Atrevido, audaz y directo. Responde a lo que dice en el chat.",
+        "Romántico": "Cálido, tierno, cariñoso y expresivo. Responde al mensaje sin saludar.",
+        "Coqueto": "Divertido, juguetón y con picardía ligera. Responde al mensaje de la otra persona.",
+        "Picante": "Atrevido, audaz y directo. Responde al contenido real del chat.",
         "Provocativo": "Desafiante y misterioso para generar interés.",
         "Salvar el Momento": "Ingenioso y ameno para reactivar la charla si se volvió fría o seca."
     }
 
     estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
-    contexto_evaluado = texto_contexto if texto_contexto else "La otra persona acaba de responder en el chat."
+    contexto_evaluado = texto_contexto if texto_contexto else "La otra persona acaba de enviar un mensaje en el chat."
 
     prompt_texto = (
-        f"Conversación extraída del chat o contexto: '{contexto_evaluado}'.\n\n"
-        f"Tu objetivo es dar una RESPUESTA DE CONTINUACIÓN exacta para ese chat en estilo {modo.upper()}.\n"
+        f"Texto conversacional del chat: '{contexto_evaluado}'.\n\n"
+        f"Tu objetivo es dar una RESPUESTA DE CONTINUACIÓN exacta para el mensaje en estilo {modo.upper()}.\n"
         f"Enfoque del tono: {estilo_instruccion}\n\n"
         f"REGLAS OBLIGATORIAS:\n"
-        f"1. NO saludes (no digas 'Hola', 'Buenas', etc.) a menos que la opción sea 'Iniciar Conversación'.\n"
-        f"2. Responde directamente al ÚLTIMO MENSAJE que envió la otra persona.\n"
-        f"3. Genera exactamente 3 opciones de respuesta NUNCA antes vistas, totalmente improvisadas y numeradas del 1 al 3.\n"
-        f"4. Escribe en español latino natural, sin introducciones ni comentarios adicionales."
+        f"1. Enfócate ÚNICAMENTE en las palabras y el tema conversacional que dijo la otra persona.\n"
+        f"2. NUNCA menciones horas (como 5:15, p.m., a.m.), números de interfaz o tiempos del mensaje.\n"
+        f"3. NO saludes a menos que la opción sea 'Iniciar Conversación'.\n"
+        f"4. Genera exactamente 3 opciones de respuesta NUNCA antes vistas, totalmente improvisadas y numeradas del 1 al 3.\n"
+        f"5. Escribe en español latino natural, sin introducciones ni comentarios adicionales."
     )
 
     headers = {
@@ -224,7 +238,7 @@ def procesar():
         payload = {
             "model": modelo,
             "messages": [
-                {"role": "system", "content": "Eres un experto en seducción y conversación. Tu tarea es generar la continuación perfecta para un chat basándote en lo que la otra persona escribió."},
+                {"role": "system", "content": "Eres un experto en seducción y conversación. Generas respuestas enfocadas en el diálogo real ignorando horarios o metadatos de la pantalla."},
                 {"role": "user", "content": prompt_texto}
             ],
             "temperature": 0.95,
