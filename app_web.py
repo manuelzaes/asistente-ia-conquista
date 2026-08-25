@@ -46,6 +46,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spark IA - Tu Asistente de Conquista</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         body { background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; margin: 0; }
         .container { max-width: 500px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 20px; }
@@ -72,7 +73,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v17.0</div>
+        <div class="subtitle">Asistente de Conquista v18.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -98,16 +99,29 @@ HTML_TEMPLATE = """
 
     <script>
         let imagenBase64 = null;
+        let textoExtraidoOCR = "";
 
-        function cargarImagen(event) {
+        async function cargarImagen(event) {
             const file = event.target.files[0];
             if (file) {
+                const resDiv = document.getElementById('res');
+                resDiv.innerHTML = '<span class="loading">🔍 Leyendo texto de la captura...</span>';
+                
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = async function(e) {
                     imagenBase64 = e.target.result;
                     document.getElementById('preview-img').src = imagenBase64;
                     document.getElementById('preview-img').style.display = 'block';
                     document.getElementById('upload-text').style.display = 'none';
+
+                    try {
+                        const result = await Tesseract.recognize(imagenBase64, 'spa');
+                        textoExtraidoOCR = result.data.text;
+                        resDiv.innerText = "✅ Captura procesada con éxito. Ahora elige una opción abajo.";
+                    } catch (err) {
+                        textoExtraidoOCR = "";
+                        resDiv.innerText = "📸 Captura lista. Elige una opción abajo.";
+                    }
                 };
                 reader.readAsDataURL(file);
             }
@@ -115,6 +129,7 @@ HTML_TEMPLATE = """
 
         function limpiarTodo() {
             imagenBase64 = null;
+            textoExtraidoOCR = "";
             document.getElementById('file-input').value = "";
             document.getElementById('preview-img').style.display = 'none';
             document.getElementById('upload-text').style.display = 'block';
@@ -126,15 +141,16 @@ HTML_TEMPLATE = """
             const resDiv = document.getElementById('res');
             const textoManual = document.getElementById('texto-adicional').value;
             
-            resDiv.innerHTML = '<span class="loading">🤔 Analizando conversación y generando respuestas ' + modo.toLowerCase() + 's...</span>';
+            let contextoFinal = (textoExtraidoOCR + " " + textoManual).trim();
+
+            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas ' + modo.toLowerCase() + 's adaptadas...</span>';
             
             try {
                 const response = await fetch('/procesar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        imagen: imagenBase64, 
-                        texto: textoManual, 
+                        texto: contextoFinal, 
                         modo: modo 
                     })
                 });
@@ -160,8 +176,7 @@ def home():
 @app.route('/procesar', methods=['POST'])
 def procesar():
     data = request.json or {}
-    texto_manual = data.get('texto', '').strip()
-    imagen_b64 = data.get('imagen')
+    texto_contexto = data.get('texto', '').strip()
     modo = data.get('modo', 'Coqueto')
 
     api_key = os.environ.get("GROQ_API_KEY", "").strip()
@@ -170,63 +185,54 @@ def procesar():
         return jsonify({'error': 'Falta configurar la GROQ_API_KEY en Render.'})
 
     guia_estilo = {
-        "Iniciar Conversación": "Rompehielos original para abrir la plática.",
-        "Romántico": "Cálido, tierno, cariñoso y expresivo. NO saludes, responde a lo que dijo la otra persona.",
-        "Coqueto": "Divertido, con humor inteligente y picardía ligera. Responde directamente a su último mensaje.",
-        "Picante": "Atrevido, audaz y coqueto directo. Coquetea respondiendo a lo que dice en el chat.",
-        "Provocativo": "Desafiante y misterioso para picarle el orgullo o picar su curiosidad.",
-        "Salvar el Momento": "Ingenioso y divertido para reactivar la charla si se volvió aburrida o cortante."
+        "Iniciar Conversación": "Rompehielos original e ingenioso para abrir conversación.",
+        "Romántico": "Cálido, tierno, cariñoso y expresivo. Responde a lo que la otra persona dijo sin saludar.",
+        "Coqueto": "Divertido, juguetón y con picardía ligera. Responde al último mensaje que envió la otra persona.",
+        "Picante": "Atrevido, audaz y directo. Responde a lo que dice en el chat.",
+        "Provocativo": "Desafiante y misterioso para generar interés.",
+        "Salvar el Momento": "Ingenioso y ameno para reactivar la charla si se volvió fría o seca."
     }
 
     estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
+    contexto_evaluado = texto_contexto if texto_contexto else "La otra persona acaba de responder en el chat."
 
-    instruccion_principal = (
-        f"Analiza la conversación que ves en la imagen o en el texto ingresado.\n"
-        f"Tu objetivo es dar una RESPUESTA DE CONTINUACIÓN para el chat en estilo {modo.upper()}.\n"
-        f"Tono y enfoque: {estilo_instruccion}\n\n"
+    prompt_texto = (
+        f"Conversación extraída del chat o contexto: '{contexto_evaluado}'.\n\n"
+        f"Tu objetivo es dar una RESPUESTA DE CONTINUACIÓN exacta para ese chat en estilo {modo.upper()}.\n"
+        f"Enfoque del tono: {estilo_instruccion}\n\n"
         f"REGLAS OBLIGATORIAS:\n"
         f"1. NO saludes (no digas 'Hola', 'Buenas', etc.) a menos que la opción sea 'Iniciar Conversación'.\n"
-        f"2. Responde directamente al ÚLTIMO MENSAJE enviado por la otra persona en el chat.\n"
-        f"3. Entrega exactamente 3 opciones de respuestas variadas, contundentes y numeradas del 1 al 3.\n"
-        f"4. Español latino natural, sin explicaciones ni introducciones."
+        f"2. Responde directamente al ÚLTIMO MENSAJE que envió la otra persona.\n"
+        f"3. Genera exactamente 3 opciones de respuesta NUNCA antes vistas, totalmente improvisadas y numeradas del 1 al 3.\n"
+        f"4. Escribe en español latino natural, sin introducciones ni comentarios adicionales."
     )
-
-    content_user = []
-
-    if texto_manual:
-        content_user.append({"type": "text", "text": f"Contexto/Mensaje recibido: '{texto_manual}'\n\n{instruccion_principal}"})
-    else:
-        content_user.append({"type": "text", "text": instruccion_principal})
-
-    if imagen_b64:
-        content_user.append({
-            "type": "image_url",
-            "image_url": {"url": imagen_b64}
-        })
 
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
 
-    # Modelos con soporte para visión y texto en Groq
-    modelos_vision = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview", "openai/gpt-oss-120b"]
+    modelos = [
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "qwen/qwen3.6-27b"
+    ]
 
     ultimo_error = ""
 
-    for modelo in modelos_vision:
+    for modelo in modelos:
         payload = {
             "model": modelo,
             "messages": [
-                {"role": "system", "content": "Eres un experto en seducción y dinámicas de chat. Generas respuestas continuas para chats según el tono solicitado."},
-                {"role": "user", "content": content_user}
+                {"role": "system", "content": "Eres un experto en seducción y conversación. Tu tarea es generar la continuación perfecta para un chat basándote en lo que la otra persona escribió."},
+                {"role": "user", "content": prompt_texto}
             ],
-            "temperature": 0.9,
+            "temperature": 0.95,
             "max_tokens": 400
         }
 
         try:
-            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=15)
+            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=12)
             res_json = resp.json()
 
             if resp.status_code == 200 and "choices" in res_json:
