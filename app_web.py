@@ -81,7 +81,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v20.0</div>
+        <div class="subtitle">Asistente de Conquista v5.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
