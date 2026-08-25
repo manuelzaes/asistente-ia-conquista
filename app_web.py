@@ -27,7 +27,7 @@ def limpiar_respuesta(texto_raw, modo):
     lineas = [l.strip() for l in texto.split('\n') if l.strip()]
     lineas_filtradas = []
     
-    palabras_basura = ["analiz", "pensam", "usuario", "solicitud", "espera", "thinking", "option"]
+    palabras_basura = ["analiz", "pensam", "usuario", "solicitud", "espera", "thinking", "option", "here is"]
     
     for l in lineas:
         if not any(p in l.lower() for p in palabras_basura):
@@ -72,7 +72,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v16.1</div>
+        <div class="subtitle">Asistente de Conquista v17.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -126,7 +126,7 @@ HTML_TEMPLATE = """
             const resDiv = document.getElementById('res');
             const textoManual = document.getElementById('texto-adicional').value;
             
-            resDiv.innerHTML = '<span class="loading">🤔 Generando respuestas ' + modo.toLowerCase() + 's únicas...</span>';
+            resDiv.innerHTML = '<span class="loading">🤔 Analizando conversación y generando respuestas ' + modo.toLowerCase() + 's...</span>';
             
             try {
                 const response = await fetch('/procesar', {
@@ -161,6 +161,7 @@ def home():
 def procesar():
     data = request.json or {}
     texto_manual = data.get('texto', '').strip()
+    imagen_b64 = data.get('imagen')
     modo = data.get('modo', 'Coqueto')
 
     api_key = os.environ.get("GROQ_API_KEY", "").strip()
@@ -169,52 +170,63 @@ def procesar():
         return jsonify({'error': 'Falta configurar la GROQ_API_KEY en Render.'})
 
     guia_estilo = {
-        "Iniciar Conversación": "Rompehielos original, ingenioso e impredecible para abrir conversación de forma fluida.",
-        "Romántico": "Cálido, tierno, expresivo, seguro de sí mismo y muy detallista.",
-        "Coqueto": "Divertido, juguetón, con humor fresco y picardía ligera.",
-        "Picante": "Atrevido, audaz, coqueto y directo sin rodeos.",
-        "Provocativo": "Desafiante, interesante y misterioso para obligar a responder.",
-        "Salvar el Momento": "Ingenioso y ameno para desentrampar la conversación si se enfrió."
+        "Iniciar Conversación": "Rompehielos original para abrir la plática.",
+        "Romántico": "Cálido, tierno, cariñoso y expresivo. NO saludes, responde a lo que dijo la otra persona.",
+        "Coqueto": "Divertido, con humor inteligente y picardía ligera. Responde directamente a su último mensaje.",
+        "Picante": "Atrevido, audaz y coqueto directo. Coquetea respondiendo a lo que dice en el chat.",
+        "Provocativo": "Desafiante y misterioso para picarle el orgullo o picar su curiosidad.",
+        "Salvar el Momento": "Ingenioso y divertido para reactivar la charla si se volvió aburrida o cortante."
     }
 
     estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
-    contexto_evaluado = texto_manual if texto_manual else "Hola, ¿cómo estás?"
 
-    prompt_texto = (
-        f"Contexto o mensaje recibido del chat: '{contexto_evaluado}'.\n"
-        f"Genera exactamente 3 opciones de respuesta NUNCA antes vistas, totalmente improvisadas, variadas y originales en estilo {modo.upper()}.\n"
-        f"Enfoque del tono: {estilo_instruccion}\n"
-        f"REGLA OBLIGATORIA: Adapta las respuestas al mensaje o contexto exacto. Responde únicamente con las 3 opciones numeradas del 1 al 3 en español latino natural, sin introducción ni notas adicionales."
+    instruccion_principal = (
+        f"Analiza la conversación que ves en la imagen o en el texto ingresado.\n"
+        f"Tu objetivo es dar una RESPUESTA DE CONTINUACIÓN para el chat en estilo {modo.upper()}.\n"
+        f"Tono y enfoque: {estilo_instruccion}\n\n"
+        f"REGLAS OBLIGATORIAS:\n"
+        f"1. NO saludes (no digas 'Hola', 'Buenas', etc.) a menos que la opción sea 'Iniciar Conversación'.\n"
+        f"2. Responde directamente al ÚLTIMO MENSAJE enviado por la otra persona en el chat.\n"
+        f"3. Entrega exactamente 3 opciones de respuestas variadas, contundentes y numeradas del 1 al 3.\n"
+        f"4. Español latino natural, sin explicaciones ni introducciones."
     )
+
+    content_user = []
+
+    if texto_manual:
+        content_user.append({"type": "text", "text": f"Contexto/Mensaje recibido: '{texto_manual}'\n\n{instruccion_principal}"})
+    else:
+        content_user.append({"type": "text", "text": instruccion_principal})
+
+    if imagen_b64:
+        content_user.append({
+            "type": "image_url",
+            "image_url": {"url": imagen_b64}
+        })
 
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
 
-    # Lista de modelos compatibles en orden de prioridad
-    modelos = [
-        "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
-        "qwen/qwen3.6-27b",
-        "llama-3.3-70b-versatile"
-    ]
+    # Modelos con soporte para visión y texto en Groq
+    modelos_vision = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview", "openai/gpt-oss-120b"]
 
     ultimo_error = ""
 
-    for modelo in modelos:
+    for modelo in modelos_vision:
         payload = {
             "model": modelo,
             "messages": [
-                {"role": "system", "content": "Eres un experto en seducción, carisma y conversación que improvisa opciones dinámicas e inéditas cada vez que le piden una respuesta."},
-                {"role": "user", "content": prompt_texto}
+                {"role": "system", "content": "Eres un experto en seducción y dinámicas de chat. Generas respuestas continuas para chats según el tono solicitado."},
+                {"role": "user", "content": content_user}
             ],
-            "temperature": 0.95,
+            "temperature": 0.9,
             "max_tokens": 400
         }
 
         try:
-            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=12)
+            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=15)
             res_json = resp.json()
 
             if resp.status_code == 200 and "choices" in res_json:
@@ -222,7 +234,7 @@ def procesar():
                 texto_final = limpiar_respuesta(raw_text, modo)
                 return jsonify({'respuesta': texto_final})
             elif "error" in res_json:
-                ultimo_error = res_json["error"].get("message", "Error desconocido")
+                ultimo_error = res_json["error"].get("message", "Error en Groq API")
         except Exception as e:
             ultimo_error = str(e)
 
