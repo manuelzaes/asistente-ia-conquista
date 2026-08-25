@@ -40,13 +40,9 @@ def limpiar_respuesta(texto_raw, modo):
     return texto_raw
 
 def limpiar_basura_ocr(texto):
-    # Eliminar patrones de hora (ej: 5:15 p.m., 17:30, 9:25 p. m.)
     texto = re.sub(r'\b\d{1,2}:\d{2}\s*(?:p\.?\s*m\.?|a\.?\s*m\.?)?\b', '', texto, flags=re.IGNORECASE)
-    # Eliminar estados de lectura o palabras del sistema
     texto = re.sub(r'\b(visto|leído|enviado|online|en línea|whatsapp|hoy|ayer)\b', '', texto, flags=re.IGNORECASE)
-    # Eliminar números aislados o raros de la interfaz
     texto = re.sub(r'\b\d+\b', '', texto)
-    # Limpiar espacios múltiples
     texto = re.sub(r'\s+', ' ', texto).strip()
     return texto
 
@@ -57,6 +53,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spark IA - Tu Asistente de Conquista</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         body { background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; margin: 0; }
@@ -84,7 +81,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>🤖 Spark IA</h2>
-        <div class="subtitle">Asistente de Conquista v5.5</div>
+        <div class="subtitle">Asistente de Conquista v20.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
             <span id="upload-text">📸 Subir captura del chat</span>
@@ -199,26 +196,28 @@ def procesar():
 
     guia_estilo = {
         "Iniciar Conversación": "Rompehielos original e ingenioso para abrir conversación.",
-        "Romántico": "Cálido, tierno, cariñoso y expresivo. Responde al mensaje sin saludar.",
-        "Coqueto": "Divertido, juguetón y con picardía ligera. Responde al mensaje de la otra persona.",
-        "Picante": "Atrevido, audaz y directo. Responde al contenido real del chat.",
+        "Romántico": "Cálido, tierno, cariñoso y expresivo.",
+        "Coqueto": "Divertido, juguetón y con picardía ligera.",
+        "Picante": "Atrevido, audaz y directo.",
         "Provocativo": "Desafiante y misterioso para generar interés.",
         "Salvar el Momento": "Ingenioso y ameno para reactivar la charla si se volvió fría o seca."
     }
 
     estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
-    contexto_evaluado = texto_contexto if texto_contexto else "La otra persona acaba de enviar un mensaje en el chat."
+    contexto_evaluado = texto_contexto if texto_contexto else "La otra persona acaba de responder."
 
     prompt_texto = (
-        f"Texto conversacional del chat: '{contexto_evaluado}'.\n\n"
-        f"Tu objetivo es dar una RESPUESTA DE CONTINUACIÓN exacta para el mensaje en estilo {modo.upper()}.\n"
-        f"Enfoque del tono: {estilo_instruccion}\n\n"
+        f"HISTORIAL / CONTEXTO EXTRAÍDO DEL CHAT:\n\"{contexto_evaluado}\"\n\n"
+        f"INSTRUCCIÓN CLAVE DE ENFOQUE:\n"
+        f"1. Identifica el ÚLTIMO MENSAJE o la ÚLTIMA PALABRA que la OTRA PERSONA te envió en ese historial.\n"
+        f"2. Tu respuesta DEBE RESPONDER DIRECTAMENTE a esa última intervención de la otra persona. Usa el resto del chat únicamente como contexto ambiental.\n"
+        f"3. Si ella dijo algo como 'depende del momento' o se rió, responde directamente a ese 'depende' o a su risa, no repitas lo que tú dijiste antes.\n\n"
+        f"ESTILO REQUERIDO: {modo.upper()} ({estilo_instruccion})\n\n"
         f"REGLAS OBLIGATORIAS:\n"
-        f"1. Enfócate ÚNICAMENTE en las palabras y el tema conversacional que dijo la otra persona.\n"
-        f"2. NUNCA menciones horas (como 5:15, p.m., a.m.), números de interfaz o tiempos del mensaje.\n"
-        f"3. NO saludes a menos que la opción sea 'Iniciar Conversación'.\n"
-        f"4. Genera exactamente 3 opciones de respuesta NUNCA antes vistas, totalmente improvisadas y numeradas del 1 al 3.\n"
-        f"5. Escribe en español latino natural, sin introducciones ni comentarios adicionales."
+        f"- NO saludes (no digas 'Hola', 'Buenas', etc.) salvo en 'Iniciar Conversación'.\n"
+        f"- NUNCA menciones horarios (como 6:15 p.m.), ni números sueltos del OCR.\n"
+        f"- Genera exactamente 3 opciones de respuesta numeradas del 1 al 3.\n"
+        f"- Escribe en español latino natural, sin introducciones ni metatexto."
     )
 
     headers = {
@@ -238,7 +237,7 @@ def procesar():
         payload = {
             "model": modelo,
             "messages": [
-                {"role": "system", "content": "Eres un experto en seducción y conversación. Generas respuestas enfocadas en el diálogo real ignorando horarios o metadatos de la pantalla."},
+                {"role": "system", "content": "Eres un experto en dinámicas de conversación y seducción. Tu especialidad es responder con agilidad al ÚLTIMO mensaje enviado por la otra persona en la conversación."},
                 {"role": "user", "content": prompt_texto}
             ],
             "temperature": 0.95,
