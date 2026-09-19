@@ -237,10 +237,21 @@ def procesar():
         payload = {
             "model": modelo,
             "messages": [
-                {"role": "system", "content": "Eres un experto en dinámicas de conversación y seducción. Tu especialidad es responder con agilidad al ÚLTIMO mensaje enviado por la otra persona en la conversación."},
+                {
+                    "role": "system", 
+                    "content": (
+                        "Eres un experto en dinámicas de conversación, carisma y seducción. "
+                        "Tu objetivo es generar respuestas de nivel 'legendario': ingeniosas, audaces, con humor inteligente o intrigantes.\n\n"
+                        "REGLAS DE ORO:\n"
+                        "1. Responde SIEMPRE basándote en el ÚLTIMO mensaje o idea recibida.\n"
+                        "2. EVITA clichés cursis como 'crear momentos', 'instante mágico', 'el destino dirá' o frases de tarjeta de regalo.\n"
+                        "3. Prioriza el juego de palabras, el doble sentido sutil, la provocación juguetona y los remates con chispa.\n"
+                        "4. Adapta estrictamente el tono al botón seleccionado (Romántico, Coqueto, Picante, Provocativo)."
+                    )
+                },
                 {"role": "user", "content": prompt_texto}
             ],
-            "temperature": 0.95,
+            "temperature": 1.15,
             "max_tokens": 400
         }
 
