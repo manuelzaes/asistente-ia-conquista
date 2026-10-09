@@ -209,15 +209,14 @@ def procesar():
     prompt_texto = (
         f"HISTORIAL / CONTEXTO EXTRAÍDO DEL CHAT:\n\"{contexto_evaluado}\"\n\n"
         f"INSTRUCCIÓN CLAVE DE ENFOQUE:\n"
-        f"1. Identifica el ÚLTIMO MENSAJE o la ÚLTIMA PALABRA que la OTRA PERSONA te envió en ese historial.\n"
-        f"2. Tu respuesta DEBE RESPONDER DIRECTAMENTE a esa última intervención de la otra persona. Usa el resto del chat únicamente como contexto ambiental.\n"
-        f"3. Si ella dijo algo como 'depende del momento' o se rió, responde directamente a ese 'depende' o a su risa, no repitas lo que tú dijiste antes.\n\n"
+        f"1. Genera respuestas que continúen la conversación basándote en la información o mensaje del chat subido.\n"
+        f"2. Mantén cada opción directa y fluida (máximo 2 líneas por opción) para asegurar una respuesta completa.\n\n"
         f"ESTILO REQUERIDO: {modo.upper()} ({estilo_instruccion})\n\n"
         f"REGLAS OBLIGATORIAS:\n"
+        f"- OBLIGATORIO: Muestra siempre las 3 opciones completas (numeradas 1, 2 y 3).\n"
         f"- NO saludes (no digas 'Hola', 'Buenas', etc.) salvo en 'Iniciar Conversación'.\n"
-        f"- NUNCA menciones horarios (como 6:15 p.m.), ni números sueltos del OCR.\n"
-        f"- Genera exactamente 3 opciones de respuesta numeradas del 1 al 3.\n"
-        f"- Escribe en español latino natural, sin introducciones ni metatexto."
+        f"- NUNCA menciones horarios ni números sueltos del OCR.\n"
+        f"- Escribe en español latino natural, sin introducciones ni comentarios adicionales."
     )
 
     headers = {
@@ -237,22 +236,11 @@ def procesar():
         payload = {
             "model": modelo,
             "messages": [
-                {
-                    "role": "system", 
-                    "content": (
-                        "Eres un experto en dinámicas de conversación, carisma y seducción. "
-                        "Tu objetivo es generar respuestas de nivel 'legendario': ingeniosas, audaces, con humor inteligente o intrigantes.\n\n"
-                        "REGLAS DE ORO:\n"
-                        "1. Responde SIEMPRE basándote en el ÚLTIMO mensaje o idea recibida.\n"
-                        "2. EVITA clichés cursis como 'crear momentos', 'instante mágico', 'el destino dirá' o frases de tarjeta de regalo.\n"
-                        "3. Prioriza el juego de palabras, el doble sentido sutil, la provocación juguetona y los remates con chispa.\n"
-                        "4. Adapta estrictamente el tono al botón seleccionado (Romántico, Coqueto, Picante, Provocativo)."
-                    )
-                },
+                {"role": "system", "content": "Eres un experto en dinámicas de conversación y seducción. Tu tarea es responder al chat proporcionando siempre exactamente 3 opciones de respuesta completas, atractivas y bien estructuradas."},
                 {"role": "user", "content": prompt_texto}
             ],
-            "temperature": 1.15,
-            "max_tokens": 400
+            "temperature": 1.1,
+            "max_tokens": 600
         }
 
         try:
