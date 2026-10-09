@@ -207,16 +207,17 @@ def procesar():
     contexto_evaluado = texto_contexto if texto_contexto else "La otra persona acaba de responder."
 
     prompt_texto = (
-        f"HISTORIAL / CONTEXTO EXTRAÍDO DEL CHAT:\n\"{contexto_evaluado}\"\n\n"
-        f"INSTRUCCIÓN CLAVE DE ENFOQUE:\n"
-        f"1. Genera respuestas que continúen la conversación basándote en la información o mensaje del chat subido.\n"
-        f"2. Mantén cada opción directa y fluida (máximo 2 líneas por opción) para asegurar una respuesta completa.\n\n"
+        f"HISTORIAL O MENSAJE DEL CHAT SUBIDO:\n\"{contexto_evaluado}\"\n\n"
+        f"ROL Y PERSPECTIVA OBLIGATORIA:\n"
+        f"1. Tú eres el ASISTENTE del usuario que opera esta app.\n"
+        f"2. Debes escribir respuestas PARA QUE EL USUARIO SE LAS ENVÍE A LA OTRA PERSONA.\n"
+        f"3. NUNCA respondas como si fueras la otra persona. Si en la imagen se lee el nombre del usuario, NUNCA uses ese nombre para responder.\n"
+        f"4. Mantén cada opción fluida y directa (máximo 2 a 3 líneas por opción).\n\n"
         f"ESTILO REQUERIDO: {modo.upper()} ({estilo_instruccion})\n\n"
-        f"REGLAS OBLIGATORIAS:\n"
-        f"- OBLIGATORIO: Muestra siempre las 3 opciones completas (numeradas 1, 2 y 3).\n"
+        f"REGLAS DE FORMATO:\n"
+        f"- MUESTRA OBLIGATORIAMENTE LAS 3 OPCIONES COMPLETAS (numeradas 1, 2 y 3).\n"
         f"- NO saludes (no digas 'Hola', 'Buenas', etc.) salvo en 'Iniciar Conversación'.\n"
-        f"- NUNCA menciones horarios ni números sueltos del OCR.\n"
-        f"- Escribe en español latino natural, sin introducciones ni comentarios adicionales."
+        f"- Escribe en español latino natural, sin introducciones ni frases explicativas."
     )
 
     headers = {
@@ -236,7 +237,14 @@ def procesar():
         payload = {
             "model": modelo,
             "messages": [
-                {"role": "system", "content": "Eres un experto en dinámicas de conversación y seducción. Tu tarea es responder al chat proporcionando siempre exactamente 3 opciones de respuesta completas, atractivas y bien estructuradas."},
+                {
+                    "role": "system", 
+                    "content": (
+                        "Eres un asistente experto en seducción y dinámicas de conversación. "
+                        "Tu tarea es generar sugerencias de mensajes para que tu usuario se los envié a su interlocutor. "
+                        "Garantiza enviar siempre exactamente 3 opciones de respuesta numéricas y completas."
+                    )
+                },
                 {"role": "user", "content": prompt_texto}
             ],
             "temperature": 1.1,
