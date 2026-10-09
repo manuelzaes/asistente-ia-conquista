@@ -54,33 +54,162 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spark IA - Tu Asistente de Conquista</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    
+    <!-- Fuente Futurista Orbitron y Space Grotesk -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body { background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; margin: 0; }
-        .container { max-width: 500px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 20px; }
-        h2 { color: #bb86fc; margin-bottom: 5px; }
-        .subtitle { color: #888; font-size: 14px; margin-bottom: 20px; }
-        .upload-area { border: 2px dashed #888; border-radius: 15px; padding: 20px; cursor: pointer; background: #252525; margin-bottom: 15px; }
-        #preview-img { max-width: 100%; max-height: 200px; border-radius: 10px; margin-top: 10px; display: none; }
-        textarea { width: 90%; height: 70px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 12px; padding: 12px; resize: none; margin-bottom: 15px; font-size: 14px;}
-        
-        .grid-botones { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
-        .btn-base { border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; color: white; text-transform: uppercase; font-size: 12px;}
+        body { 
+            background: radial-gradient(circle at top, #121629 0%, #080912 100%);
+            color: white; 
+            font-family: 'Segoe UI', sans-serif; 
+            text-align: center; 
+            padding: 20px; 
+            margin: 0; 
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container { 
+            width: 100%;
+            max-width: 480px; 
+            background: #141724; 
+            padding: 28px 24px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 20px rgba(187, 134, 252, 0.08); 
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin: auto;
+        }
+
+        /* FUENTE ORBITRON CON COLOR LILA ORIGINAL (#bb86fc) */
+        .header-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #bb86fc;
+            margin: 0 0 4px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(187, 134, 252, 0.3);
+        }
+
+        .header-title span.rayo {
+            color: #bb86fc;
+            font-size: 26px;
+        }
+
+        .subtitle { 
+            font-family: 'Space Grotesk', sans-serif;
+            color: #717e9e; 
+            font-size: 11px; 
+            margin-bottom: 22px; 
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .upload-area { 
+            border: 1.5px dashed #374151; 
+            border-radius: 12px; 
+            padding: 18px; 
+            cursor: pointer; 
+            background: #1c2033; 
+            margin-bottom: 15px; 
+            color: #d1d5db;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        #preview-img { 
+            max-width: 100%; 
+            max-height: 200px; 
+            border-radius: 10px; 
+            margin-top: 10px; 
+            display: none; 
+        }
+
+        textarea { 
+            width: 100%; 
+            box-sizing: border-box;
+            height: 70px; 
+            background: #1c2033; 
+            color: white; 
+            border: 1px solid #2d354d; 
+            border-radius: 12px; 
+            padding: 12px; 
+            resize: none; 
+            margin-bottom: 15px; 
+            font-size: 13px;
+            outline: none;
+        }
+
+        .grid-botones { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 10px; 
+            margin-bottom: 15px; 
+        }
+
+        .btn-base { 
+            border: none; 
+            padding: 12px; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            color: white; 
+            text-transform: uppercase; 
+            font-size: 12px;
+        }
+
         .btn-ini { background: linear-gradient(135deg, #00c6ff, #0072ff); grid-column: span 2; }
         .btn-rom { background: linear-gradient(135deg, #ff69b4, #ff1493); }
         .btn-coq { background: linear-gradient(135deg, #ff9100, #ed8002); }
         .btn-pic { background: linear-gradient(135deg, #ff3d00, #dd2c00); }
         .btn-pro { background: linear-gradient(135deg, #a855f7, #7e22ce); }
         .btn-salv { background: linear-gradient(135deg, #10b981, #059669); grid-column: span 2; }
-        .btn-limp { background: #444; color: #ccc; margin-top: 10px; width: 100%; padding: 10px; border-radius: 10px; border: none; cursor: pointer; font-size: 12px; }
-        
-        #res { background: #2a2a2a; padding: 18px; border-radius: 12px; text-align: left; white-space: pre-wrap; margin-top: 15px; border-left: 5px solid #00D4FF; min-height: 50px; font-size: 14px; line-height: 1.5; }
+
+        .btn-limp { 
+            background: #23283b; 
+            color: #9ca3af; 
+            margin-top: 5px; 
+            width: 100%; 
+            padding: 10px; 
+            border-radius: 10px; 
+            border: none; 
+            cursor: pointer; 
+            font-size: 12px; 
+            font-weight: 600;
+        }
+
+        #res { 
+            background: #1c2033; 
+            padding: 18px; 
+            border-radius: 12px; 
+            text-align: left; 
+            white-space: pre-wrap; 
+            margin-top: 15px; 
+            border-left: 4px solid #00D4FF; 
+            min-height: 50px; 
+            font-size: 14px; 
+            line-height: 1.5; 
+            color: #e5e7eb;
+        }
+
         .loading { color: #888; font-style: italic; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>🤖 Spark IA</h2>
+        <h2 class="header-title"><span class="rayo">⚡</span> SPARK IA</h2>
         <div class="subtitle">Asistente de Conquista v6.0</div>
         
         <div class="upload-area" onclick="document.getElementById('file-input').click();">
@@ -240,8 +369,8 @@ def procesar():
                 {
                     "role": "system", 
                     "content": (
-                        "Eres un asistente experto en seducción y dinámicas de conversación. "
-                        "Tu tarea es generar sugerencias de mensajes para que tu usuario se los envié a su interlocutor. "
+                        "Eres un experto en seducción y dinámicas de conversación. "
+                        "Tu tarea es generar sugerencias de mensajes para que tu usuario se los envíe a su interlocutor. "
                         "Garantiza enviar siempre exactamente 3 opciones de respuesta numéricas y completas."
                     )
                 },
