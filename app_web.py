@@ -499,19 +499,20 @@ def procesar():
 
     estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
     contexto_evaluado = texto_contexto if texto_contexto else "La otra persona acaba de responder."
-
+    # ==========================================
     prompt_texto = (
-        f"HISTORIAL O MENSAJE DEL CHAT SUBIDO:\n\"{contexto_evaluado}\"\n\n"
-        f"ROL Y PERSPECTIVA OBLIGATORIA:\n"
-        f"1. Tú eres el ASISTENTE del usuario que opera esta app.\n"
-        f"2. Debes escribir respuestas PARA QUE EL USUARIO SE LAS ENVÍE A LA OTRA PERSONA.\n"
-        f"3. NUNCA respondas como si fueras la otra persona. Si en la imagen se lee el nombre del usuario, NUNCA uses ese nombre para responder.\n"
-        f"4. Mantén cada opción fluida y directa (máximo 2 a 3 líneas por opción).\n\n"
+        f"MENSAJE O CONTEXTO RECIBIDO DE LA OTRA PERSONA:\n\"{contexto_evaluado}\"\n\n"
+        f"INSTRUCCIONES CLAVE PARA EL ASISTENTE DE SEDUCCIÓN:\n"
+        f"1. Eres un experto absoluto en chamuyo, coqueteo y atracción magnética (tipo app de citas de alto nivel).\n"
+        f"2. Genera 3 opciones de mensajes irresistibles, ingeniosos, seguros de sí mismos y con chispa para que EL USUARIO se los envíe a su interlocutor.\n"
+        f"3. NUNCA menciones horas, relojes, marcas de tiempo (como '3:52 p.m.') ni elementos técnicos de la captura. Ignóralos por completo.\n"
+        f"4. Conéctate directamente con la intención de la otra persona (su foto, su tono, su humor) usando un gancho seductor pero natural, sin sonar desesperado ni forzado.\n"
+        f"5. Cada opción debe ser breve (máximo 2 líneas), directa al grano y con un toque de picardía o misterio.\n\n"
         f"ESTILO REQUERIDO: {modo.upper()} ({estilo_instruccion})\n\n"
-        f"REGLAS DE FORMATO:\n"
-        f"- MUESTRA OBLIGATORIAMENTE LAS 3 OPCIONES COMPLETAS (numeradas 1, 2 y 3).\n"
-        f"- NO saludes (no digas 'Hola', 'Buenas', etc.) salvo en 'Iniciar Conversación'.\n"
-        f"- Escribe en español latino natural, sin introducciones ni frases explicativas."
+        f"REGLAS DE FORMATO OBLIGATORIAS:\n"
+        f"- Muestra exactamente 3 opciones numeradas (1, 2 y 3).\n"
+        f"- Cero saludos introductorios ni explicaciones. Directo a la frase.\n"
+        f"- Español latino muy casual, canchero y natural."
     )
 
     headers = {
@@ -534,9 +535,9 @@ def procesar():
                 {
                     "role": "system", 
                     "content": (
-                        "Eres un experto en seducción y dinámicas de conversación. "
-                        "Tu tarea es generar sugerencias de mensajes para que tu usuario se los envíe a su interlocutor. "
-                        "Garantiza enviar siempre exactamente 3 opciones de respuesta numéricas y completas."
+                        "Eres el motor de una app de citas de élite especializada en seducción, "
+                        "creando respuestas con un 'chamuyo' impecable, magnético y de alto impacto emocional. "
+                        "Tu único objetivo es darle al usuario frases ganadoras, seguras y atractivas."
                     )
                 },
                 {"role": "user", "content": prompt_texto}
