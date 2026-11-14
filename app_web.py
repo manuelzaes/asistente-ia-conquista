@@ -446,7 +446,6 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def home():
-    # Si el usuario no ha iniciado sesión, lo mandamos al login
     if not session.get('autenticado'):
         return render_template_string(LOGIN_TEMPLATE)
     return render_template_string(HTML_TEMPLATE)
@@ -456,8 +455,6 @@ def login():
     usuario_ingresado = request.form.get('usuario', '').strip()
     password_ingresado = request.form.get('password', '').strip()
 
-    # Obtenemos las credenciales configuradas en las variables de entorno de Render
-    # Si no existen en Render, ponemos valores por defecto provisionales
     USER_CORRECTO = os.environ.get("ACCESS_USER", "admin")
     PASS_CORRECTO = os.environ.get("ACCESS_PASS", "spark2026")
 
@@ -488,7 +485,7 @@ def procesar():
 
     texto_contexto = limpiar_basura_ocr(texto_raw_contexto)
 
-   instrucciones_avanzadas = {
+    instrucciones_avanzadas = {
         "Iniciar Conversación": (
             "ESTILO INICIAR CONVERSACIÓN AVANZADO:\n"
             "- Rompehielos ultra original, fresco y magnético que enganche de inmediato.\n"
