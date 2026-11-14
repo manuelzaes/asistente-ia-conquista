@@ -488,18 +488,47 @@ def procesar():
 
     texto_contexto = limpiar_basura_ocr(texto_raw_contexto)
 
-    guia_estilo = {
-        "Iniciar Conversación": "Rompehielos original e ingenioso para abrir conversación.",
-        "Romántico": "Cálido, tierno, cariñoso y expresivo.",
-        "Coqueto": "Divertido, juguetón y con picardía ligera.",
-        "Picante": "Atrevido, audaz y directo.",
-        "Provocativo": "Desafiante y misterioso para generar interés.",
-        "Salvar el Momento": "Ingenioso y ameno para reactivar la charla si se volvió fría o seca."
+   instrucciones_avanzadas = {
+        "Iniciar Conversación": (
+            "ESTILO INICIAR CONVERSACIÓN AVANZADO:\n"
+            "- Rompehielos ultra original, fresco y magnético que enganche de inmediato.\n"
+            "- Evita preguntas genéricas de '¿cómo estás?' o '¿qué haces?'. Ve directo a algo llamativo, divertido o intrigante.\n"
+            "- Cero respuestas aburridas o de entrevista."
+        ),
+        "Romántico": (
+            "ESTILO ROMÁNTICO AVANZADO:\n"
+            "- Cálido, profundo, tierno pero con mucha elegancia y seguridad masculina.\n"
+            "- Conecta emocionalmente de forma genuina, sin caer en cursilerías anticuadas, metáforas de laboratorio ni poesía barata.\n"
+            "- Haz que sienta una chispa especial y genuina al leerlo."
+        ),
+        "Coqueto": (
+            "ESTILO COQUETO AVANZADO:\n"
+            "- Juega con la tensión y el tira y afloja. Hazle saber que le sigues el juego pero con sutileza.\n"
+            "- Usa un tono canchero, retador y pícaro (estilo apps de citas exitosas).\n"
+            "- Cero respuestas literales o aburridas. Cada frase debe dejar con ganas de más."
+        ),
+        "Picante": (
+            "ESTILO PICANTE AVANZADO:\n"
+            "- Atrevido, audaz y con una tensión física o mental muy atractiva y directa.\n"
+            "- Mantén la elegancia sin perder la intensidad ni el descaro sutil.\n"
+            "- Respuestas directas al grano que enciendan la conversación al instante."
+        ),
+        "Provocativo": (
+            "ESTILO PROVOCATIVO AVANZADO:\n"
+            "- Desafiante, magnético y misterioso para despertar una curiosidad intensa.\n"
+            "- Reta sutilmente a la otra persona con seguridad absoluta.\n"
+            "- Deja una premisa en el aire que obligue a sonreír y responder con ganas."
+        ),
+        "Salvar el Momento": (
+            "ESTILO SALVAR EL MOMENTO AVANZADO:\n"
+            "- Ingenioso, fresco y ameno para reactivar una charla fría, cortada o monótona.\n"
+            "- Rompe el hielo de golpe con una ocurrencia divertida o un giro inesperado que devuelva la energía al chat."
+        )
     }
 
-    estilo_instruccion = guia_estilo.get(modo, "Atractivo y natural.")
+    instruccion_modo_extra = instrucciones_avanzadas.get(modo, f"ESTILO REQUERIDO: {modo.upper()} (Atractivo y natural.)")
     contexto_evaluado = texto_contexto if texto_contexto else "La otra persona acaba de responder."
-    # ==========================================
+
     prompt_texto = (
         f"MENSAJE O CONTEXTO RECIBIDO DE LA OTRA PERSONA:\n\"{contexto_evaluado}\"\n\n"
         f"INSTRUCCIONES CLAVE PARA EL ASISTENTE DE SEDUCCIÓN:\n"
@@ -508,9 +537,8 @@ def procesar():
         f"3. Genera 3 opciones de mensajes fluidos, ingeniosos y atrapantes para que EL USUARIO se los envíe en respuesta a lo que ella dijo.\n"
         f"4. PROHIBIDO USAR METÁFORAS CURSIS O POÉTICAS: No hables de 'fórmulas', 'química', 'recetas' ni 'experimentos'.\n"
         f"5. NUNCA menciones horas, relojes ni marcas de tiempo. Ignóralos por completo.\n"
-        f"6. Enfócate en picardía simple, humor ligero, doble sentido elegante o proponer verse de forma natural.\n"
-        f"7. Cada opción debe ser corta (máximo 1 a 2 líneas), lista para copiar y pegar.\n\n"
-        f"ESTILO REQUERIDO: {modo.upper()} ({estilo_instruccion})\n\n"
+        f"6. Cada opción debe ser corta (máximo 1 a 2 líneas), lista para copiar y pegar.\n\n"
+        f"{instruccion_modo_extra}\n\n"
         f"REGLAS DE FORMATO OBLIGATORIAS:\n"
         f"- Muestra exactamente 3 opciones numeradas (1, 2 y 3).\n"
         f"- Cero saludos introductorios ni explicaciones. Directo a la frase.\n"
