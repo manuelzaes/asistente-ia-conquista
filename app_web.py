@@ -523,7 +523,7 @@ def procesar():
         )
     }
 
-  instruccion_modo_extra = instrucciones_avanzadas.get(modo, f"ESTILO REQUERIDO: {modo.upper()} (Atractivo y natural.)")
+    instruccion_modo_extra = instrucciones_avanzadas.get(modo, f"ESTILO REQUERIDO: {modo.upper()} (Atractivo y natural.)")
     contexto_evaluado = texto_contexto if texto_contexto else "La otra persona acaba de responder."
 
     prompt_texto = (
