@@ -523,8 +523,9 @@ def procesar():
         )
     }
 
-    instruccion_modo_extra = instrucciones_avanzadas.get(modo, f"ESTILO REQUERIDO: {modo.upper()} (Atractivo y natural.)")
-   if not texto_contexto:
+   instruccion_modo_extra = instrucciones_avanzadas.get(modo, f"ESTILO REQUERIDO: {modo.upper()} (Atractivo y natural.)")
+    
+    if not texto_contexto:
         return jsonify({'error': 'Por favor, sube una captura de chat válida o escribe contexto antes de elegir un estilo.'}), 400
 
     contexto_evaluado = texto_contexto
