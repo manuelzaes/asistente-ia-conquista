@@ -501,7 +501,7 @@ def procesar():
         "Coqueto": (
             "ESTILO COQUETO AVANZADO:\n"
             "- Juega con la tensión y el tira y afloja. Hazle saber que le sigues el juego pero con sutileza.\n"
-            "- Usa un tono canchero, retador y pícaro (estilo apps de citas exitosas).\n"
+            "- Usa un tono canchero, retador y pícaro (estilo apps de citas успешны).\n"
             "- Cero respuestas literales o aburridas. Cada frase debe dejar con ganas de más."
         ),
         "Picante": (
@@ -525,18 +525,19 @@ def procesar():
 
     instruccion_modo_extra = instrucciones_avanzadas.get(modo, f"ESTILO REQUERIDO: {modo.upper()} (Atractivo y natural.)")
     
-    # 🛑 Validación estricta: Si no hay texto ni captura, frena la ejecución y avisa al usuario
-    if not texto_contexto:
+    # 🛑 Validación inteligente: Exigimos texto/captura para todos los estilos... EXCEPTO para "Iniciar Conversación" (que puede iniciar desde cero)
+    if not texto_contexto and modo != "Iniciar Conversación":
         return jsonify({'error': 'Por favor, sube una captura de chat válida o escribe contexto antes de elegir un estilo.'}), 400
 
-    contexto_evaluado = texto_contexto
+    # Si no hay texto y es "Iniciar Conversación", asignamos un comodín para que la IA sepa que debe crear un rompehielos desde cero
+    contexto_evaluado = texto_contexto if texto_contexto else "Quiero iniciar una conversación desde cero con alguien de forma original y atractiva (no hay historial previo)."
 
     prompt_texto = (
         f"MENSAJE O CONTEXTO RECIBIDO DE LA OTRA PERSONA:\n\"{contexto_evaluado}\"\n\n"
         f"INSTRUCCIONES CLAVE PARA EL ASISTENTE DE SEDUCCIÓN:\n"
-        f"1. ¡MUY IMPORTANTE - ROLES!: Lo que ves en la captura o texto es LO ÚLTIMO QUE DIJO ELLA (tu interlocutora). TÚ eres el usuario que va a contestarle a ese mensaje. NUNCA asumas que el usuario eres ella.\n"
+        f"1. ¡MUY IMPORTANTE - ROLES!: Lo que ves en la captura o texto es LO ÚLTIMO QUE DIJO ELLA (tu interlocutora) o el contexto inicial. TÚ eres el usuario que va a contestarle o iniciar el chat. NUNCA asumas que el usuario eres ella.\n"
         f"2. Eres un experto absoluto en 'chamuyo' de chat real, directo, magnético y seguro de sí mismo.\n"
-        f"3. Genera 3 opciones de mensajes fluidos, ingeniosos y atrapantes para que EL USUARIO se los envíe en respuesta a lo que ella dijo.\n"
+        f"3. Genera 3 opciones de mensajes fluidos, ingeniosos y atrapantes para que EL USUARIO se los envíe en respuesta a lo que ella dijo (o para romper el hielo desde cero si no hay historial).\n"
         f"4. PROHIBIDO USAR METÁFORAS CURSIS O POÉTICAS: No hables de 'fórmulas', 'química', 'recetas' ni 'experimentos'.\n"
         f"5. NUNCA menciones horas, relojes ni marcas de tiempo. Ignóralos por completo.\n"
         f"6. Cada opción debe ser corta (máximo 1 a 2 líneas), lista para copiar y pegar.\n\n"
@@ -567,7 +568,7 @@ def procesar():
                 {
                     "role": "system", 
                     "content": (
-                        "Eres el motor de una app de citas de élite especializada en seducción, "
+                        "Eres el motor de la app de citas de élite Spark IA, especializada en seducción, "
                         "creando respuestas con un 'chamuyo' impecable, magnético y de alto impacto emocional. "
                         "Tu único objetivo es darle al usuario frases ganadoras, seguras y atractivas."
                     )
